@@ -30,11 +30,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     onUpdateSettings({ ...settings, soundEnabled: nextSound });
   };
 
-  const handleWalkToggle = () => {
-    if (settings.soundEnabled) soundService.playClick();
-    onUpdateSettings({ ...settings, walkSimulation: !settings.walkSimulation });
-  };
-
   const handleSensitivityChange = (val: number) => {
     if (settings.soundEnabled) soundService.playClick();
     onUpdateSettings({ ...settings, sensitivity: val });
@@ -62,45 +57,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   return (
     <div className="flex flex-col w-full max-w-sm mx-auto p-4 sm:p-6 gap-6 pb-28 pt-6">
-      {/* Theme Section */}
-      <section className="flex flex-col gap-2">
-        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Theme</h2>
-        <div className="flex bg-[#f2f4f7] dark:bg-[#162B3B] rounded-2xl p-1.5 shadow-inner w-full justify-between gap-1">
-          <button
-            onClick={() => handleThemeChange('light')}
-            className={`flex-1 flex items-center justify-center py-3 rounded-xl transition-all duration-200 ${
-              settings.theme === 'light'
-                ? 'bg-[#ffffff] text-[#005f9e] shadow-sm font-bold'
-                : 'text-[#404751] dark:text-[#c0c7d3] hover:bg-black/5 dark:hover:bg-white/5'
-            }`}
-            aria-label="Light Theme"
-          >
-            <Sun className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => handleThemeChange('dark')}
-            className={`flex-1 flex items-center justify-center py-3 rounded-xl transition-all duration-200 ${
-              settings.theme === 'dark'
-                ? 'bg-[#191c1e] text-[#9dcaff] shadow-sm font-bold'
-                : 'text-[#404751] dark:text-[#c0c7d3] hover:bg-black/5 dark:hover:bg-white/5'
-            }`}
-            aria-label="Dark Theme"
-          >
-            <Moon className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => handleThemeChange('system')}
-            className={`flex-1 flex items-center justify-center py-3 rounded-xl transition-all duration-200 ${
-              settings.theme === 'system'
-                ? 'bg-[#e0e3e6] dark:bg-[#2d3133] text-[#005f9e] dark:text-[#9dcaff] shadow-sm font-bold'
-                : 'text-[#404751] dark:text-[#c0c7d3] hover:bg-black/5 dark:hover:bg-white/5'
-            }`}
-            aria-label="System Theme"
-          >
-            <Smartphone className="w-5 h-5" />
-          </button>
-        </div>
-      </section>
+      {/* Theme Section hidden for now — dark theme is the fixed default
+          (see DEFAULT_SETTINGS in services/storage.ts). handleThemeChange
+          stays defined in case this comes back. */}
 
       {/* Audio Section */}
       <section className="flex flex-col gap-2">
@@ -136,26 +95,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       <section className="flex flex-col gap-2">
         <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Controls</h2>
         <div className="p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised flex flex-col gap-4 border border-white/60 dark:border-transparent">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-base text-[#191c1e] dark:text-[#eff1f4]">
-              Simulate Walking Footsteps
-            </span>
-            <button
-              onClick={handleWalkToggle}
-              className="relative w-14 h-8 bg-[#e0e3e6] dark:bg-[#050B10] rounded-full transition-colors duration-300 focus:outline-none p-1 neumorphic-inset"
-              aria-label="Toggle Walking Wobble"
-            >
-              <div
-                className={`w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${
-                  settings.walkSimulation
-                    ? 'translate-x-6 bg-[#005f9e] dark:bg-[#0078c6]'
-                    : 'translate-x-0 bg-[#707882]'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+          <div className="flex flex-col gap-2">
             <div className="flex justify-between text-sm text-[#404751] dark:text-[#c0c7d3]">
               <span>Tilt Sensitivity</span>
               <span className="font-bold text-[#005f9e] dark:text-[#9dcaff]">

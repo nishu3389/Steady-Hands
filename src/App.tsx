@@ -25,12 +25,13 @@ export default function App() {
     setGameSessionKey((prev) => prev + 1);
   };
 
-  // Apply Theme (Light / Dark / System)
+  // Apply Theme — the Light/Dark/System picker is hidden for now (Settings
+  // screen), so dark is forced here regardless of settings.theme; this also
+  // covers anyone with a stale non-dark value already saved in localStorage
+  // from before the picker was hidden.
   useEffect(() => {
     const root = document.documentElement;
-    const isDark =
-      settings.theme === 'dark' ||
-      (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDark = true;
 
     if (isDark) {
       root.classList.add('dark');
@@ -79,11 +80,8 @@ export default function App() {
     storageService.saveProfile(newProfile);
   };
 
-  const isDarkMode =
-    settings.theme === 'dark' ||
-    (settings.theme === 'system' &&
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches);
+  // Forced dark while the theme picker is hidden — see the effect above.
+  const isDarkMode = true;
 
   return (
     <div className="min-h-screen bg-[#f0f4f9] dark:bg-[#191c1e] text-[#191c1e] dark:text-[#eff1f4] flex flex-col justify-between transition-colors duration-200">

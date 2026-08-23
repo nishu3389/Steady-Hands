@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Tailwind v4 defaults `dark:` to the OS/browser prefers-color-scheme media
+   query, NOT a `.dark` class — so App.tsx's theme logic (adding/removing
+   `.dark` on <html>, driven by GameSettings.theme) was having zero visual
+   effect on every dark: utility in the app regardless of what it set. This
+   restores class-based dark mode so forcing dark here actually renders dark
+   even on a device whose system theme is light. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   * {
     font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

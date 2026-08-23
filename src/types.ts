@@ -28,7 +28,6 @@ export interface GameSettings {
   soundEnabled: boolean;
   vibrationEnabled: boolean;
   sensitivity: number; // 0.5 to 2.0
-  walkSimulation: boolean;
 }
 
 export interface GameResult {

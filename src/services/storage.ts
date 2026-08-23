@@ -8,11 +8,10 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_SETTINGS: GameSettings = {
-  theme: 'light',
+  theme: 'dark',
   soundEnabled: true,
   vibrationEnabled: true,
   sensitivity: 1.0,
-  walkSimulation: true,
 };
 
 const DEFAULT_PROFILE: UserProfile = {

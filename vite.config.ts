@@ -14,8 +14,12 @@ const keyPath = path.resolve(__dirname, 'key.pem');
 const certPath = path.resolve(__dirname, 'cert.pem');
 const hasCert = fs.existsSync(keyPath) && fs.existsSync(certPath);
 
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
   return {
+    // GitHub Pages serves this repo from /Steady-Hands/, not the domain
+    // root, so built asset URLs need that prefix. The dev server (npm run
+    // dev) still serves from / as normal.
+    base: command === 'build' ? '/Steady-Hands/' : '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

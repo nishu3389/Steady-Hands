@@ -1071,9 +1071,13 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             DIFFICULTY
           </span>
 
-          {/* Large Inset Container for segments */}
-          <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 neumorphic-inset flex items-center overflow-x-auto snap-x scroll-px-3.5 scroll-smooth hide-scrollbar">
-            <div className="flex items-center gap-2 px-3.5 min-w-max">
+          {/* Large Inset Container for segments — rounded-[28px] rather than
+              rounded-full: a true pill's semicircular end-caps clip/overlap
+              scrolled chips right at the edges, since 6px of outer padding
+              isn't enough clearance for that much curvature. Chips inside
+              stay fully rounded, just the scroll container itself doesn't. */}
+          <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-[28px] p-1.5 neumorphic-inset flex items-center overflow-x-auto snap-x scroll-px-1.5 scroll-smooth hide-scrollbar">
+            <div className="flex items-center gap-2 px-1.5 min-w-max">
               {[
                 { key: 'easy', label: 'Easy' },
                 { key: 'normal', label: 'Medium' },

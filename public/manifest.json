@@ -1,0 +1,19 @@
+{
+  "name": "Steady Hands: Zen Balance",
+  "short_name": "Steady Hands",
+  "description": "Tactile physical balance game and mindful walking training.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f7f9fc",
+  "theme_color": "#005f9e",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "health", "lifestyle"]
+}

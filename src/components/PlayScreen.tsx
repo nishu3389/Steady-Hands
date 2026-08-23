@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DifficultyLevel, DurationOption, GameResult, GameSettings, UserProfile } from '../types';
-import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle } from 'lucide-react';
+import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
 import { ThreeBowlCanvas } from './ThreeBowlCanvas';
 import { soundService } from '../services/audio';
+import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
 
 interface PlayScreenProps {
   settings: GameSettings;
@@ -93,9 +94,20 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // Lobby Settings
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>('normal');
   const [selectedDuration, setSelectedDuration] = useState<DurationOption>(30);
+  const [showMindfulTip, setShowMindfulTip] = useState(false);
+  const [activeBenefitIndex, setActiveBenefitIndex] = useState(0);
 
   // Game Phases: 'lobby' -> 'calibrating' (3s hold in center) -> 'transitioning' -> 'playing'
   const [gamePhase, setGamePhase] = useState<GamePhase>('lobby');
+
+  // Auto-cycle through mindful benefits sequentially every 6 seconds when expanded in lobby
+  useEffect(() => {
+    if (!showMindfulTip || gamePhase !== 'lobby') return;
+    const interval = setInterval(() => {
+      setActiveBenefitIndex((prev) => (prev + 1) % MINDFUL_BENEFITS.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [showMindfulTip, gamePhase]);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const showQuitConfirmRef = useRef(false);
   showQuitConfirmRef.current = showQuitConfirm;
@@ -876,7 +888,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // RENDER: LOBBY VIEW (matching exact light mode design)
   // ----------------------------------------------------
   return (
-    <div className="flex flex-col w-full max-w-sm mx-auto items-center justify-between min-h-[calc(100vh-160px)] px-6 pt-4 pb-24 gap-6 select-none">
+    <div className="flex flex-col w-full max-w-sm mx-auto items-center justify-between min-h-[calc(100vh-160px)] px-6 pt-4 pb-24 gap-5 select-none">
       {/* Best Score Card */}
       <div className="w-full bg-white dark:bg-[#191c1e] rounded-2xl p-4 flex flex-col items-center justify-center card-raised border border-white/60 dark:border-transparent">
         <span className="text-[12px] font-bold text-[#404751] dark:text-[#c0c7d3] mb-1 tracking-[0.1em] uppercase">
@@ -885,6 +897,99 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
         <span className="text-[48px] leading-[56px] font-[800] text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
           {currentBestScore}
         </span>
+      </div>
+
+      {/* Option 3: Collapsible Mindful Health Card with Sequential Carousel */}
+      <div className="w-full">
+        <button
+          onClick={() => {
+            if (settings.soundEnabled) soundService.playClick();
+            setShowMindfulTip((prev) => !prev);
+          }}
+          className="w-full p-2.5 px-3.5 rounded-2xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/15 dark:border-[#9dcaff]/20 flex items-center justify-between transition-all hover:bg-[#e4effa] dark:hover:bg-[#1b2e40] text-left cursor-pointer shadow-sm"
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#005f9e] dark:text-[#9dcaff] shrink-0" />
+            <span className="text-xs font-bold text-[#005f9e] dark:text-[#9dcaff]">
+              Why Steady Hands? ({activeBenefitIndex + 1}/{MINDFUL_BENEFITS.length} Mind & Body)
+            </span>
+          </div>
+          {showMindfulTip ? (
+            <ChevronUp className="w-4 h-4 text-[#005f9e] dark:text-[#9dcaff]" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-[#005f9e] dark:text-[#9dcaff]" />
+          )}
+        </button>
+
+        {showMindfulTip && (
+          <div className="mt-2 p-4 rounded-2xl bg-white dark:bg-[#191c1e] card-raised border border-white/60 dark:border-transparent flex flex-col gap-3 text-left animate-in fade-in duration-200">
+            {/* Active Sequential Benefit Card */}
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/10 dark:border-[#9dcaff]/15 shrink-0 shadow-inner">
+                {MINDFUL_BENEFITS[activeBenefitIndex].icon('w-4 h-4 text-[#005f9e] dark:text-[#9dcaff]')}
+              </div>
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-[#005f9e]/10 dark:bg-[#9dcaff]/15 text-[#005f9e] dark:text-[#9dcaff] shrink-0">
+                    {MINDFUL_BENEFITS[activeBenefitIndex].tagline}
+                  </span>
+                </div>
+                <h4 className="font-extrabold text-sm text-[#191c1e] dark:text-[#eff1f4] leading-snug">
+                  {MINDFUL_BENEFITS[activeBenefitIndex].title}
+                </h4>
+                <p className="text-xs text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed mt-1.5">
+                  {MINDFUL_BENEFITS[activeBenefitIndex].description}
+                </p>
+              </div>
+            </div>
+
+            {/* Sequential Carousel Controls & Progress Dots */}
+            <div className="flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/5">
+              <div className="flex items-center gap-1 max-w-[170px] overflow-hidden">
+                {MINDFUL_BENEFITS.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      if (settings.soundEnabled) soundService.playClick();
+                      setActiveBenefitIndex(idx);
+                    }}
+                    className={`h-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                      idx === activeBenefitIndex
+                        ? 'w-5 bg-[#005f9e] dark:bg-[#9dcaff]'
+                        : 'w-1.5 bg-black/15 dark:bg-white/15 hover:bg-black/30 dark:hover:bg-white/30'
+                    }`}
+                    aria-label={`Go to benefit ${idx + 1}`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    if (settings.soundEnabled) soundService.playClick();
+                    setActiveBenefitIndex(
+                      (prev) => (prev - 1 + MINDFUL_BENEFITS.length) % MINDFUL_BENEFITS.length
+                    );
+                  }}
+                  className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-[#404751] dark:text-[#c0c7d3] active:scale-95 transition-all cursor-pointer"
+                  aria-label="Previous insight"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (settings.soundEnabled) soundService.playClick();
+                    setActiveBenefitIndex((prev) => (prev + 1) % MINDFUL_BENEFITS.length);
+                  }}
+                  className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-[#404751] dark:text-[#c0c7d3] active:scale-95 transition-all cursor-pointer"
+                  aria-label="Next insight"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Center Stylish Start Button with Ambient Glow & Rotating Circle Orbit */}

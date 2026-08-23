@@ -1,6 +1,7 @@
-import React from 'react';
-import { Smartphone, Droplets, Footprints, Timer, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Smartphone, Droplets, Footprints, Timer, CheckCircle2, Sparkles, BookOpen } from 'lucide-react';
 import { soundService } from '../services/audio';
+import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
 
 interface InstructionsScreenProps {
   onGotIt: () => void;
@@ -11,6 +12,8 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
   onGotIt,
   soundEnabled,
 }) => {
+  const [activeTab, setActiveTab] = useState<'howToPlay' | 'benefits'>('howToPlay');
+
   const steps = [
     {
       num: 1,
@@ -39,49 +42,133 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
     onGotIt();
   };
 
+  const handleTabSwitch = (tab: 'howToPlay' | 'benefits') => {
+    if (soundEnabled) soundService.playClick();
+    setActiveTab(tab);
+  };
+
   return (
-    <div className="flex flex-col w-full max-w-sm mx-auto p-4 sm:p-6 gap-6 pb-28">
-      <div className="flex flex-col items-center gap-2 text-center mt-2">
-        <h1 className="text-3xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
-          How to Play
-        </h1>
-        <p className="text-base text-[#404751] dark:text-[#c0c7d3]">
-          Keep a steady hand and don't spill the water!
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-4 relative mt-2">
-        {/* Timeline Connecting Line */}
-        <div className="absolute w-1 bg-[#e0e3e6] dark:bg-[#2d3133] h-[82%] left-7 top-6 rounded-full z-0" />
-
-        {steps.map((step) => (
-          <div key={step.num} className="flex items-center gap-4 relative z-10">
-            {/* Number Badge */}
-            <div className="w-14 h-14 rounded-full bg-white dark:bg-[#191c1e] shrink-0 flex items-center justify-center card-raised text-[#005f9e] dark:text-[#9dcaff] font-extrabold text-xl border border-white/80 dark:border-transparent">
-              {step.num}
-            </div>
-
-            {/* Content Card */}
-            <div className="flex-1 rounded-2xl p-4 bg-white dark:bg-[#191c1e] card-raised flex items-center gap-3.5 border border-white/60 dark:border-transparent">
-              <div className="shrink-0">{step.icon}</div>
-              <p className="text-sm font-semibold text-[#191c1e] dark:text-[#eff1f4] leading-snug">
-                {step.text}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Action Button */}
-      <div className="mt-4 w-full flex justify-center">
+    <div className="flex flex-col w-full max-w-sm mx-auto p-4 sm:p-6 gap-5 pb-28 pt-4">
+      {/* Top Segmented Tab Switcher */}
+      <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 flex items-center justify-between neumorphic-inset">
         <button
-          onClick={handleGotIt}
-          className="w-full max-w-[280px] h-14 rounded-full bg-white dark:bg-[#191c1e] card-raised text-[#005f9e] dark:text-[#9dcaff] font-bold text-lg active:neumorphic-inset transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/80 dark:border-transparent"
+          onClick={() => handleTabSwitch('howToPlay')}
+          className={`flex-1 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeTab === 'howToPlay'
+              ? 'neumorphic-inset bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-inner'
+              : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
+          }`}
         >
-          Got it
-          <CheckCircle2 className="w-6 h-6 text-[#005f9e] dark:text-[#9dcaff]" />
+          <BookOpen className="w-4 h-4" />
+          How to Play
+        </button>
+
+        <button
+          onClick={() => handleTabSwitch('benefits')}
+          className={`flex-1 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeTab === 'benefits'
+              ? 'neumorphic-inset bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-inner'
+              : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          Mind & Body
         </button>
       </div>
+
+      {activeTab === 'howToPlay' ? (
+        <div className="flex flex-col gap-6 animate-fade-in">
+          <div className="flex flex-col items-center gap-1.5 text-center">
+            <h1 className="text-2xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
+              Steady Hands Guide
+            </h1>
+            <p className="text-sm text-[#404751] dark:text-[#c0c7d3]">
+              Keep a steady hand and don't spill the water!
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 relative mt-1">
+            {/* Timeline Connecting Line */}
+            <div className="absolute w-1 bg-[#e0e3e6] dark:bg-[#2d3133] h-[82%] left-7 top-6 rounded-full z-0" />
+
+            {steps.map((step) => (
+              <div key={step.num} className="flex items-center gap-4 relative z-10">
+                {/* Number Badge */}
+                <div className="w-14 h-14 rounded-full bg-white dark:bg-[#191c1e] shrink-0 flex items-center justify-center card-raised text-[#005f9e] dark:text-[#9dcaff] font-extrabold text-xl border border-white/80 dark:border-transparent">
+                  {step.num}
+                </div>
+
+                {/* Content Card */}
+                <div className="flex-1 rounded-2xl p-4 bg-white dark:bg-[#191c1e] card-raised flex items-center gap-3.5 border border-white/60 dark:border-transparent">
+                  <div className="shrink-0">{step.icon}</div>
+                  <p className="text-sm font-semibold text-[#191c1e] dark:text-[#eff1f4] leading-snug">
+                    {step.text}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Action Button */}
+          <div className="mt-2 w-full flex justify-center">
+            <button
+              onClick={handleGotIt}
+              className="w-full max-w-[280px] h-14 rounded-full bg-white dark:bg-[#191c1e] card-raised text-[#005f9e] dark:text-[#9dcaff] font-bold text-lg active:neumorphic-inset transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/80 dark:border-transparent shadow-md"
+            >
+              Got it
+              <CheckCircle2 className="w-6 h-6 text-[#005f9e] dark:text-[#9dcaff]" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-5 animate-fade-in">
+          <div className="flex flex-col items-center gap-1.5 text-center">
+            <h1 className="text-2xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
+              Mind & Body Benefits
+            </h1>
+            <p className="text-sm text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed">
+              A physical mindfulness exercise rooted in somatic awareness and balance.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3.5">
+            {MINDFUL_BENEFITS.map((benefit) => (
+              <div
+                key={benefit.id}
+                className="p-4 rounded-2xl bg-white dark:bg-[#191c1e] card-raised border border-white/60 dark:border-transparent flex flex-col gap-2 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/10 dark:border-[#9dcaff]/15 shrink-0 shadow-inner">
+                    {benefit.icon()}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#005f9e] dark:text-[#9dcaff]">
+                      {benefit.tagline}
+                    </span>
+                    <h3 className="font-extrabold text-sm sm:text-base text-[#191c1e] dark:text-[#eff1f4] leading-snug">
+                      {benefit.title}
+                    </h3>
+                  </div>
+                </div>
+                <p className="text-xs sm:text-sm text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed pl-1 pt-0.5">
+                  {benefit.description}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Action Button */}
+          <div className="mt-2 w-full flex justify-center">
+            <button
+              onClick={handleGotIt}
+              className="w-full max-w-[280px] h-14 rounded-full bg-white dark:bg-[#191c1e] card-raised text-[#005f9e] dark:text-[#9dcaff] font-bold text-lg active:neumorphic-inset transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/80 dark:border-transparent shadow-md"
+            >
+              Start Practicing
+              <CheckCircle2 className="w-6 h-6 text-[#005f9e] dark:text-[#9dcaff]" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

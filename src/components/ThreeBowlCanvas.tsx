@@ -12,6 +12,15 @@ interface ThreeBowlCanvasProps {
   isDarkMode?: boolean;
 }
 
+/* ------------------------------------------------------------------
+   Bowl/water rendering ported from WaterBowlProject's water-bowl-game.html:
+   the hand-thrown ceramic bowl (scalloped rim, gold kintsugi veining), the
+   radial-gradient water material, the spill-point-centered ripple, the
+   splash-particle + ground-puddle system. Only the RENDERING is ported —
+   the control inputs (tiltX/tiltY/waterLevel/isSpilling) still come from
+   PlayScreen's own game loop via props, same contract as before.
+   ------------------------------------------------------------------ */
+
 export const ThreeBowlCanvas: React.FC<ThreeBowlCanvasProps> = ({
   tiltX,
   tiltY,
@@ -41,229 +50,472 @@ export const ThreeBowlCanvas: React.FC<ThreeBowlCanvasProps> = ({
     const width = container.clientWidth || 320;
     const height = container.clientHeight || 320;
 
-    // Scene
+    /* ---- Scene / camera / renderer ----
+       Camera framing matches the bowl's own scale (radius ~1.5, not the old
+       cylinder's ~2.9) — this is the WaterBowlProject camera, tuned for
+       this exact geometry. */
     const scene = new THREE.Scene();
 
-    // Camera
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(0, 4.8, 7.5);
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    camera.position.set(0, 3.1, 4.6);
     camera.lookAt(0, 0.4, 0);
+    const CAM_DISTANCE = camera.position.distanceTo(new THREE.Vector3(0, 0.4, 0));
+    const CAM_FOV_RAD = (42 * Math.PI) / 180;
+    // Radius of a sphere comfortably containing the bowl (rim ~1.5 + scallop
+    // wobble), with headroom so it reads as "framed", not edge-to-edge.
+    const FIT_RADIUS = 1.65;
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, isDarkMode ? 0.7 : 0.85);
-    scene.add(ambientLight);
+    // Lighting — same rig as the source game, softened a touch in dark mode
+    // (mirrors the old component's isDarkMode ambient tweak).
+    const hemi = new THREE.HemisphereLight(0xbfe9ee, 0x0a1015, isDarkMode ? 0.55 : 0.65);
+    scene.add(hemi);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.05);
+    keyLight.position.set(3, 6, 4);
+    scene.add(keyLight);
+    const rimLight = new THREE.DirectionalLight(0x6fd3e0, 0.5);
+    rimLight.position.set(-4, 2, -3);
+    scene.add(rimLight);
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
-    dirLight1.position.set(5, 10, 7);
-    dirLight1.castShadow = true;
-    scene.add(dirLight1);
+    // Procedural sky-gradient environment map so the water's clearcoat +
+    // transmission has something believable to reflect (otherwise it reads
+    // flat/plasticky, picking up only hard direct-light highlights).
+    function makeSkyEnvTexture(): THREE.Texture {
+      const size = 128;
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      const ctx = c.getContext('2d')!;
+      const grad = ctx.createLinearGradient(0, 0, 0, size);
+      grad.addColorStop(0.0, '#dff3f5');
+      grad.addColorStop(0.35, '#7fd0dc');
+      grad.addColorStop(0.7, '#1c4652');
+      grad.addColorStop(1.0, '#060f15');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size, size);
+      const tex = new THREE.CanvasTexture(c);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+    // Scoped to the water material only (below), NOT scene.environment —
+    // that would implicitly reflect onto every PBR material in the scene,
+    // including the ceramic bowl, tinting its intended white/cream + gold
+    // look with this teal-to-black gradient and reading as a dingy olive
+    // color instead.
+    const skyEnvTexture = makeSkyEnvTexture();
 
-    const dirLight2 = new THREE.DirectionalLight(0x9dcaff, 0.6);
-    dirLight2.position.set(-5, 4, -4);
-    scene.add(dirLight2);
+    /* ---- Ground + puddle "wetness map" ----
+       A canvas texture stamped with soft blobs wherever a splash droplet
+       lands, so spilled water visibly accumulates on the ground instead of
+       just vanishing. Kept subtle/transparent here since this sits inside a
+       small embedded card, not a full-bleed scene. */
+    const TABLE_RADIUS = 3.2;
+    const table = new THREE.Mesh(
+      new THREE.CircleGeometry(TABLE_RADIUS, 48),
+      new THREE.MeshStandardMaterial({
+        color: isDarkMode ? 0x1c2128 : 0xe4e8ee,
+        roughness: 0.9,
+        metalness: 0.05,
+        transparent: true,
+        opacity: isDarkMode ? 0.5 : 0.35,
+      })
+    );
+    table.rotation.x = -Math.PI / 2;
+    table.position.y = -1.02;
+    scene.add(table);
 
-    // Bowl Group
+    const PUDDLE_CANVAS_SIZE = 512;
+    const puddleCanvas = document.createElement('canvas');
+    puddleCanvas.width = puddleCanvas.height = PUDDLE_CANVAS_SIZE;
+    const puddleCtx = puddleCanvas.getContext('2d')!;
+    const puddleTexture = new THREE.CanvasTexture(puddleCanvas);
+    const puddleMesh = new THREE.Mesh(
+      new THREE.CircleGeometry(TABLE_RADIUS, 48),
+      new THREE.MeshBasicMaterial({
+        map: puddleTexture, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      })
+    );
+    puddleMesh.rotation.x = -Math.PI / 2;
+    puddleMesh.position.y = table.position.y + 0.002;
+    scene.add(puddleMesh);
+
+    function stampPuddle(worldX: number, worldZ: number, radiusWorld: number, alpha: number) {
+      const u = (worldX / TABLE_RADIUS) * 0.5 + 0.5;
+      const v = ((-worldZ) / TABLE_RADIUS) * 0.5 + 0.5;
+      const cx = u * PUDDLE_CANVAS_SIZE;
+      const cy = v * PUDDLE_CANVAS_SIZE;
+      const rPx = (radiusWorld / (TABLE_RADIUS * 2)) * PUDDLE_CANVAS_SIZE;
+      const grad = puddleCtx.createRadialGradient(cx, cy, 0, cx, cy, rPx);
+      grad.addColorStop(0, `rgba(47,143,224,${alpha})`);
+      grad.addColorStop(1, 'rgba(47,143,224,0)');
+      puddleCtx.fillStyle = grad;
+      puddleCtx.beginPath();
+      puddleCtx.arc(cx, cy, rPx, 0, Math.PI * 2);
+      puddleCtx.fill();
+      puddleTexture.needsUpdate = true;
+    }
+    function clearPuddles() {
+      puddleCtx.clearRect(0, 0, PUDDLE_CANVAS_SIZE, PUDDLE_CANVAS_SIZE);
+      puddleTexture.needsUpdate = true;
+    }
+
+    /* ---- Bowl: hand-thrown ceramic, Lathe profile ----
+       Scalloped/wavy rim, thin gold rim trim, hammered exterior bump map,
+       gold "kintsugi" crackle veining glazed into the white interior — all
+       procedural (canvas textures + geometry perturbation), no image assets. */
+    function buildBowlProfile(): THREE.Vector2[] {
+      return [
+        new THREE.Vector2(0.0, -0.95),
+        new THREE.Vector2(0.55, -0.95),
+        new THREE.Vector2(1.15, -0.55),
+        new THREE.Vector2(1.42, 0.05),
+        new THREE.Vector2(1.48, 0.35),
+        new THREE.Vector2(1.40, 0.38),
+        new THREE.Vector2(1.32, 0.30),
+        new THREE.Vector2(1.08, -0.35),
+        new THREE.Vector2(0.52, -0.72),
+        new THREE.Vector2(0.0, -0.72),
+      ];
+    }
+    const bowlProfile = buildBowlProfile();
+
+    function scallopRim(geo: THREE.BufferGeometry, profile: THREE.Vector2[]) {
+      const RIM_PEAK_Y = 0.35, TAPER_START_Y = 0.0;
+      const WOBBLE_AMPLITUDE = 0.045, LOBES = 9;
+      const pos = geo.attributes.position;
+      const profileLen = profile.length;
+      for (let i = 0; i < pos.count; i++) {
+        const y = profile[i % profileLen].y;
+        const taper = THREE.MathUtils.clamp((y - TAPER_START_Y) / (RIM_PEAK_Y - TAPER_START_Y), 0, 1);
+        if (taper <= 0) continue;
+        const x = pos.getX(i), z = pos.getZ(i);
+        const r = Math.sqrt(x * x + z * z);
+        if (r < 1e-6) continue;
+        const theta = Math.atan2(z, x);
+        const newR = r + Math.sin(theta * LOBES) * WOBBLE_AMPLITUDE * taper;
+        pos.setX(i, Math.cos(theta) * newR);
+        pos.setZ(i, Math.sin(theta) * newR);
+      }
+      pos.needsUpdate = true;
+      geo.computeVertexNormals();
+    }
+
+    function paintRimGold(geo: THREE.BufferGeometry, profile: THREE.Vector2[]) {
+      const RIM_PEAK_Y = 0.35, FADE_START_Y = 0.15;
+      const GOLD = [0.9, 0.71, 0.32], WHITE = [1, 1, 1];
+      const pos = geo.attributes.position;
+      const profileLen = profile.length;
+      const colors = new Float32Array(pos.count * 3);
+      for (let i = 0; i < pos.count; i++) {
+        const y = profile[i % profileLen].y;
+        const t = THREE.MathUtils.clamp((y - FADE_START_Y) / (RIM_PEAK_Y - FADE_START_Y), 0, 1);
+        colors[i * 3 + 0] = THREE.MathUtils.lerp(WHITE[0], GOLD[0], t);
+        colors[i * 3 + 1] = THREE.MathUtils.lerp(WHITE[1], GOLD[1], t);
+        colors[i * 3 + 2] = THREE.MathUtils.lerp(WHITE[2], GOLD[2], t);
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    }
+
+    function makeHammeredBumpTexture(): THREE.Texture {
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#808080';
+      ctx.fillRect(0, 0, size, size);
+      for (let i = 0; i < 140; i++) {
+        const x = Math.random() * size, y = Math.random() * size;
+        const r = 6 + Math.random() * 14;
+        const light = Math.random() > 0.5;
+        const paintBlob = (bx: number) => {
+          const grad = ctx.createRadialGradient(bx, y, 0, bx, y, r);
+          grad.addColorStop(0, light ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)');
+          grad.addColorStop(1, 'rgba(128,128,128,0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(bx, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        };
+        paintBlob(x);
+        if (x < r) paintBlob(x + size);
+        if (x > size - r) paintBlob(x - size);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    function makeGoldVeinTexture(): THREE.Texture {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#f6f2ea';
+      ctx.fillRect(0, 0, size, size);
+
+      function drawCrack(x: number, y: number, angle: number, len: number, width: number) {
+        if (len < 8 || width < 0.4) return;
+        const steps = Math.max(3, Math.floor(len / 14));
+        ctx.strokeStyle = 'rgba(196,150,60,0.9)';
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        let cx = x, cy = y, cAngle = angle;
+        for (let s = 0; s < steps; s++) {
+          cAngle += (Math.random() - 0.5) * 0.9;
+          const stepLen = len / steps;
+          cx += Math.cos(cAngle) * stepLen;
+          cy += Math.sin(cAngle) * stepLen;
+          ctx.lineTo(cx, cy);
+        }
+        ctx.stroke();
+        if (len > 40 && Math.random() < 0.7) {
+          drawCrack(cx, cy, cAngle + (Math.random() - 0.5) * 1.4, len * 0.55, width * 0.6);
+        }
+        drawCrack(cx, cy, cAngle + (Math.random() - 0.5) * 0.6, len * 0.6, width * 0.75);
+      }
+
+      const origins = 2 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < origins; i++) {
+        const x = size * 0.3 + Math.random() * size * 0.4;
+        const y = size * 0.3 + Math.random() * size * 0.4;
+        const branches = 3 + Math.floor(Math.random() * 3);
+        for (let b = 0; b < branches; b++) {
+          drawCrack(x, y, Math.random() * Math.PI * 2, 90 + Math.random() * 90, 3 + Math.random() * 2);
+        }
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
     const bowlGroup = new THREE.Group();
     scene.add(bowlGroup);
 
-    // Bowl Material (Fine White Ceramic with gloss)
-    const ceramicMat = new THREE.MeshPhysicalMaterial({
-      color: isDarkMode ? 0x222a36 : 0xfcfdfd,
-      roughness: 0.15,
-      metalness: 0.05,
-      clearcoat: 0.8,
-      clearcoatRoughness: 0.1,
-      side: THREE.DoubleSide,
-    });
+    const bowlGeo = new THREE.LatheGeometry(bowlProfile, 64);
+    scallopRim(bowlGeo, bowlProfile);
+    paintRimGold(bowlGeo, bowlProfile);
 
-    // Bowl Outer & Inner Shell
-    const bowlGeom = new THREE.CylinderGeometry(2.9, 1.8, 2.2, 48, 8, true);
-    const bowlMesh = new THREE.Mesh(bowlGeom, ceramicMat);
-    bowlMesh.position.y = 1.1;
+    const bowlMat = new THREE.MeshStandardMaterial({
+      color: isDarkMode ? 0xdcd8ce : 0xf5f1e8,
+      roughness: 0.55,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+      vertexColors: true,
+      bumpMap: makeHammeredBumpTexture(),
+      bumpScale: 0.006,
+    });
+    const bowlMesh = new THREE.Mesh(bowlGeo, bowlMat);
     bowlMesh.castShadow = true;
     bowlMesh.receiveShadow = true;
     bowlGroup.add(bowlMesh);
 
-    // Bowl Inner Bottom
-    const bottomGeom = new THREE.CircleGeometry(1.8, 48);
-    const bottomMesh = new THREE.Mesh(bottomGeom, ceramicMat);
-    bottomMesh.rotation.x = -Math.PI / 2;
-    bottomMesh.position.y = 0.01;
-    bottomMesh.receiveShadow = true;
-    bowlGroup.add(bottomMesh);
-
-    // Coaster / Base Rim
-    const basePlateGeom = new THREE.CylinderGeometry(2.1, 2.2, 0.25, 48);
-    const basePlate = new THREE.Mesh(basePlateGeom, ceramicMat);
-    basePlate.position.y = -0.12;
-    basePlate.castShadow = true;
-    bowlGroup.add(basePlate);
-
-    // Water Mesh inside Bowl
-    const waterGeom = new THREE.CircleGeometry(2.7, 64);
-    const waterMat = new THREE.MeshPhysicalMaterial({
-      color: 0x0088e8,
-      emissive: 0x004488,
-      roughness: 0.08,
-      metalness: 0.1,
-      transmission: 0.6,
-      ior: 1.333,
-      transparent: true,
-      opacity: 0.88,
-      side: THREE.DoubleSide,
+    const innerGeo = bowlGeo.clone();
+    const innerMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.28,
+      metalness: 0.08,
+      side: THREE.BackSide,
+      vertexColors: true,
+      map: makeGoldVeinTexture(),
     });
-    const waterMesh = new THREE.Mesh(waterGeom, waterMat);
+    const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+    innerMesh.scale.setScalar(0.985);
+    bowlGroup.add(innerMesh);
+
+    /* ---- Water surface: radial gradient (light center -> deep blue edge),
+       spill-point-centered ripple ---- */
+    const WATER_MAX_LEVEL_Y = 0.22;
+    const WATER_MIN_LEVEL_Y = -0.85;
+    const WATER_RADIUS = 1.28;
+
+    const waterGeo = new THREE.CircleGeometry(WATER_RADIUS, 64, 64);
+    const WATER_CENTER_COLOR = [0.35, 0.75, 0.95];
+    const WATER_EDGE_COLOR = [0.07, 0.35, 0.72];
+    const waterColors = new Float32Array(waterGeo.attributes.position.count * 3);
+    for (let i = 0; i < waterGeo.attributes.position.count; i++) {
+      const x = waterGeo.attributes.position.getX(i);
+      const y = waterGeo.attributes.position.getY(i);
+      const t = Math.min(1, Math.sqrt(x * x + y * y) / WATER_RADIUS);
+      waterColors[i * 3 + 0] = THREE.MathUtils.lerp(WATER_CENTER_COLOR[0], WATER_EDGE_COLOR[0], t);
+      waterColors[i * 3 + 1] = THREE.MathUtils.lerp(WATER_CENTER_COLOR[1], WATER_EDGE_COLOR[1], t);
+      waterColors[i * 3 + 2] = THREE.MathUtils.lerp(WATER_CENTER_COLOR[2], WATER_EDGE_COLOR[2], t);
+    }
+    waterGeo.setAttribute('color', new THREE.BufferAttribute(waterColors, 3));
+
+    const waterMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      vertexColors: true,
+      roughness: 0.07,
+      metalness: 0.0,
+      transmission: 0.55,
+      thickness: 0.6,
+      ior: 1.33,
+      transparent: true,
+      opacity: 0.92,
+      side: THREE.DoubleSide,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.08,
+      envMap: skyEnvTexture,
+      envMapIntensity: 1.4,
+    });
+    const waterMesh = new THREE.Mesh(waterGeo, waterMat);
     waterMesh.rotation.x = -Math.PI / 2;
-    waterMesh.position.y = 1.6;
     bowlGroup.add(waterMesh);
 
-    // Inner Rim Accent Ring
-    const rimGeom = new THREE.TorusGeometry(2.9, 0.06, 16, 48);
-    const rimMat = new THREE.MeshStandardMaterial({
-      color: isDarkMode ? 0x9dcaff : 0x0078c6,
-      metalness: 0.3,
-      roughness: 0.2,
-      transparent: true,
-      opacity: 0.4,
-    });
-    const rimMesh = new THREE.Mesh(rimGeom, rimMat);
-    rimMesh.rotation.x = Math.PI / 2;
-    rimMesh.position.y = 2.2;
-    bowlGroup.add(rimMesh);
+    const waterPosAttr = waterGeo.attributes.position;
+    const basePositions = (waterPosAttr.array as Float32Array).slice();
 
-    // Shadow on ground
-    const shadowGeom = new THREE.PlaneGeometry(8, 8);
-    const shadowMat = new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: isDarkMode ? 0.35 : 0.12,
-    });
-    const shadowMesh = new THREE.Mesh(shadowGeom, shadowMat);
-    shadowMesh.rotation.x = -Math.PI / 2;
-    shadowMesh.position.y = -0.26;
-    scene.add(shadowMesh);
-
-    // Splashing Particles Engine
-    const maxParticles = 80;
-    const particleGeom = new THREE.SphereGeometry(0.06, 8, 8);
-    const particleMat = new THREE.MeshBasicMaterial({
-      color: 0x72c4ff,
-      transparent: true,
-      opacity: 0.8,
-    });
-    const particlePool: { mesh: THREE.Mesh; vx: number; vy: number; vz: number; life: number }[] = [];
-
-    for (let i = 0; i < maxParticles; i++) {
-      const p = new THREE.Mesh(particleGeom, particleMat);
-      p.visible = false;
-      scene.add(p);
-      particlePool.push({ mesh: p, vx: 0, vy: 0, vz: 0, life: 0 });
+    function updateWaterMeshFromLevel(fillRatio: number) {
+      const y = THREE.MathUtils.lerp(WATER_MIN_LEVEL_Y, WATER_MAX_LEVEL_Y, fillRatio);
+      waterMesh.position.y += (y - waterMesh.position.y) * 0.15;
+      const r = THREE.MathUtils.lerp(0.5, 1.0, fillRatio);
+      waterMesh.scale.set(r, r, 1);
     }
 
-    function spawnSplash(originX: number, originZ: number) {
-      for (let i = 0; i < 3; i++) {
-        const p = particlePool.find((item) => !item.mesh.visible);
-        if (p) {
-          p.mesh.visible = true;
-          p.mesh.position.set(originX + (Math.random() - 0.5) * 0.2, 2.0, originZ + (Math.random() - 0.5) * 0.2);
-          const angle = Math.atan2(originZ, originX) + (Math.random() - 0.5) * 0.5;
-          const speed = 0.08 + Math.random() * 0.12;
-          p.vx = Math.cos(angle) * speed;
-          p.vy = 0.06 + Math.random() * 0.08;
-          p.vz = Math.sin(angle) * speed;
-          p.life = 1.0;
-        }
+    function rippleWater(t: number, turbulence: number, dirX: number, dirZ: number, originX: number, originZ: number) {
+      const arr = waterPosAttr.array as Float32Array;
+      for (let i = 0; i < arr.length; i += 3) {
+        const x = basePositions[i];
+        const y = basePositions[i + 1];
+        const d = Math.sqrt(x * x + y * y);
+        const baseline = Math.sin(d * 6 - t * 3.2) * 0.010 + Math.sin(x * 4 + t * 1.7) * 0.006;
+        const dx = x - originX, dy = y - originZ;
+        const dOrigin = Math.sqrt(dx * dx + dy * dy);
+        const choppy = (Math.sin(dOrigin * 14 - t * 9.0) * 0.014 + Math.sin(dOrigin * 10 + t * 6.5) * 0.010) * turbulence;
+        const slosh = (x * dirX + y * dirZ) * turbulence * 0.05;
+        arr[i + 2] = baseline + choppy + slosh;
+      }
+      waterPosAttr.needsUpdate = true;
+      waterGeo.computeVertexNormals();
+    }
+
+    /* ---- Splash particles + puddle stamping on landing ---- */
+    const MAX_PARTICLES = 120;
+    const partGeo = new THREE.BufferGeometry();
+    const partPos = new Float32Array(MAX_PARTICLES * 3);
+    const partVel = new Float32Array(MAX_PARTICLES * 3);
+    const partLife = new Float32Array(MAX_PARTICLES);
+    for (let i = 0; i < MAX_PARTICLES; i++) partLife[i] = -1;
+    partGeo.setAttribute('position', new THREE.BufferAttribute(partPos, 3));
+    const partMat = new THREE.PointsMaterial({
+      color: 0x8fc3ee, size: 0.05, transparent: true, opacity: 0.9, depthWrite: false,
+    });
+    const particles = new THREE.Points(partGeo, partMat);
+    scene.add(particles);
+
+    function spawnSplash(worldX: number, worldZ: number, dirX: number, dirZ: number, amount: number) {
+      let spawned = 0;
+      for (let i = 0; i < MAX_PARTICLES && spawned < amount; i++) {
+        if (partLife[i] > 0) continue;
+        partLife[i] = 1.7 + Math.random() * 0.4;
+        partPos[i * 3 + 0] = worldX + (Math.random() - 0.5) * 0.15;
+        partPos[i * 3 + 1] = 0.15 + Math.random() * 0.1;
+        partPos[i * 3 + 2] = worldZ + (Math.random() - 0.5) * 0.15;
+        const spread = 1.2;
+        partVel[i * 3 + 0] = dirX * 1.6 + (Math.random() - 0.5) * spread;
+        partVel[i * 3 + 1] = 1.4 + Math.random() * 1.0;
+        partVel[i * 3 + 2] = dirZ * 1.6 + (Math.random() - 0.5) * spread;
+        spawned++;
       }
     }
+    function updateParticles(dt: number) {
+      for (let i = 0; i < MAX_PARTICLES; i++) {
+        if (partLife[i] <= 0) continue;
+        partLife[i] -= dt;
+        partVel[i * 3 + 1] -= 4.2 * dt;
+        partPos[i * 3 + 0] += partVel[i * 3 + 0] * dt;
+        partPos[i * 3 + 1] += partVel[i * 3 + 1] * dt;
+        partPos[i * 3 + 2] += partVel[i * 3 + 2] * dt;
+        if (partPos[i * 3 + 1] < -1.05) {
+          stampPuddle(partPos[i * 3 + 0], partPos[i * 3 + 2], 0.20 + Math.random() * 0.28, 0.4 + Math.random() * 0.25);
+          partLife[i] = -1;
+          partPos[i * 3 + 1] = -999;
+        } else if (partLife[i] <= 0) {
+          partPos[i * 3 + 1] = -999;
+        }
+      }
+      partGeo.attributes.position.needsUpdate = true;
+    }
 
-    // Animation physics variables
+    /* ---- Animation state ---- */
     let curRotX = 0;
     let curRotZ = 0;
-    let waterSloshX = 0;
-    let waterSloshZ = 0;
-    let waterVelX = 0;
-    let waterVelZ = 0;
+    let waterTiltX = 0;
+    let waterTiltZ = 0;
+    let prevRotX = 0;
+    let prevRotZ = 0;
+    let turbulence = 0;
     let time = 0;
+    let lastSplashTime = 0;
+    let lastFillRatio = currentWaterLevel.current / 100;
+    let lastFrameMs = performance.now();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
-      time += 0.03;
+      const now = performance.now();
+      const dt = Math.min(0.1, (now - lastFrameMs) / 1000);
+      lastFrameMs = now;
+      time += dt;
 
-      // Smoothly interpolate bowl tilt
-      const targetX = targetTiltY.current * 0.45;
-      const targetZ = -targetTiltX.current * 0.45;
-
-      curRotX += (targetX - curRotX) * 0.12;
-      curRotZ += (targetZ - curRotZ) * 0.12;
-
+      // Bowl tilt: same rotation axes as the source game (X from vertical
+      // input, Z from horizontal input), smoothly following the prop target.
+      const targetRotX = targetTiltY.current * 0.45;
+      const targetRotZ = -targetTiltX.current * 0.45;
+      curRotX += (targetRotX - curRotX) * 0.15;
+      curRotZ += (targetRotZ - curRotZ) * 0.15;
       bowlGroup.rotation.x = curRotX;
       bowlGroup.rotation.z = curRotZ;
 
-      // Water fluid slosh inertia physics (spring-damper system)
-      const spring = 0.08;
-      const damping = 0.88;
+      // Water lags the bowl slightly (child mesh local counter-tilt), same
+      // as the source game's waterTiltX/Z follow.
+      waterTiltX += (-curRotX * 0.3 - waterTiltX) * 0.12;
+      waterTiltZ += (-curRotZ * 0.3 - waterTiltZ) * 0.12;
 
-      const forceX = -curRotX * 1.5 - waterSloshX * spring;
-      const forceZ = -curRotZ * 1.5 - waterSloshZ * spring;
-
-      waterVelX = (waterVelX + forceX) * damping;
-      waterVelZ = (waterVelZ + forceZ) * damping;
-
-      waterSloshX += waterVelX;
-      waterSloshZ += waterVelZ;
-
-      // Water surface tilt & height based on water level
+      // Fresh round detection: water jumping back up near full means a new
+      // game started — clear the ground puddles from the last round.
       const fillRatio = Math.max(0, Math.min(1, currentWaterLevel.current / 100));
-      const targetWaterY = 0.3 + fillRatio * 1.5;
-      waterMesh.position.y += (targetWaterY - waterMesh.position.y) * 0.1;
-
-      // Adjust scale of water disc to fit tapered bowl shape
-      const radiusAtHeight = 1.8 + (waterMesh.position.y / 2.2) * 1.1;
-      const currentScale = (radiusAtHeight / 2.7) * (fillRatio > 0.01 ? 1 : 0.001);
-      waterMesh.scale.set(currentScale, currentScale, 1);
-
-      // Water ripples & slosh reaction
-      waterMesh.rotation.x = -Math.PI / 2 + waterSloshX * 0.5;
-      waterMesh.rotation.z = waterSloshZ * 0.5;
-
-      // Spilling effect: if spilling or water level drops rapidly, spawn droplets
-      if (isSpillingRef.current && fillRatio > 0.05) {
-        // Find highest edge of water relative to bowl rim
-        const edgeAngle = Math.atan2(waterSloshZ, waterSloshX);
-        const rimX = Math.cos(edgeAngle) * 2.7;
-        const rimZ = Math.sin(edgeAngle) * 2.7;
-        spawnSplash(rimX, rimZ);
+      if (fillRatio > 0.97 && lastFillRatio < 0.9) {
+        clearPuddles();
       }
+      lastFillRatio = fillRatio;
 
-      // Update particle physics
-      for (const p of particlePool) {
-        if (p.mesh.visible) {
-          p.mesh.position.x += p.vx;
-          p.mesh.position.y += p.vy;
-          p.mesh.position.z += p.vz;
-          p.vy -= 0.008; // gravity
-          p.life -= 0.035;
+      updateWaterMeshFromLevel(fillRatio);
 
-          if (p.life <= 0 || p.mesh.position.y < -0.2) {
-            p.mesh.visible = false;
-          }
-        }
+      // Turbulence: ramps up while spilling or being jerked, decays otherwise.
+      const tiltAngularVel = dt > 0 ? Math.hypot(curRotX - prevRotX, curRotZ - prevRotZ) / dt : 0;
+      const jerkTurbulence = Math.min(1, tiltAngularVel * 4);
+      turbulence = Math.max(turbulence * 0.9, jerkTurbulence, isSpillingRef.current ? 0.6 : 0);
+      prevRotX = curRotX;
+      prevRotZ = curRotZ;
+
+      const tiltMag = Math.hypot(curRotX, curRotZ);
+      const dirX = tiltMag > 1e-6 ? -curRotZ / tiltMag : 0;
+      const dirZ = tiltMag > 1e-6 ? curRotX / tiltMag : 0;
+      const rimX = dirX * WATER_RADIUS * 0.9;
+      const rimZ = dirZ * WATER_RADIUS * 0.9;
+
+      rippleWater(time, turbulence, dirX, dirZ, rimX, rimZ);
+
+      // Spill droplets, launched from the downhill rim point, throttled so
+      // it reads as a steady trickle rather than a single amorphous burst.
+      if (isSpillingRef.current && fillRatio > 0.02 && now - lastSplashTime > 90) {
+        lastSplashTime = now;
+        const worldPos = new THREE.Vector3(rimX, waterMesh.position.y, rimZ).applyEuler(bowlGroup.rotation);
+        const worldDir = new THREE.Vector3(dirX, 0, dirZ).applyEuler(bowlGroup.rotation);
+        const worldDirLen = Math.hypot(worldDir.x, worldDir.z) || 1;
+        spawnSplash(worldPos.x, worldPos.z, worldDir.x / worldDirLen, worldDir.z / worldDirLen, 2);
       }
-
-      // Shadow opacity and scale response to tilt
-      const tiltMag = Math.sqrt(curRotX * curRotX + curRotZ * curRotZ);
-      shadowMesh.position.x = curRotZ * 0.8;
-      shadowMesh.position.z = -curRotX * 0.8;
-      shadowMesh.scale.set(1 + tiltMag * 0.2, 1 + tiltMag * 0.2, 1);
+      updateParticles(dt);
 
       renderer.render(scene, camera);
     };
@@ -295,15 +547,27 @@ export const ThreeBowlCanvas: React.FC<ThreeBowlCanvasProps> = ({
       container.addEventListener('touchmove', handlePointerMove);
     }
 
+    // Fits FIT_RADIUS inside the frustum in BOTH dimensions (not just
+    // whichever axis a fixed reference aspect happened to assume) — the
+    // previous version only ever ran on a window 'resize' event, so on
+    // first load (no resize fired) the bowl rendered at zoom=1 with no
+    // fitting at all, cropping badly in this narrower embedded card versus
+    // the full-bleed screen this camera was originally tuned for.
+    const fitCameraToContainer = (w: number, h: number) => {
+      if (w <= 0 || h <= 0) return;
+      const aspect = w / h;
+      camera.aspect = aspect;
+      const verticalZoom = (CAM_DISTANCE * Math.tan(CAM_FOV_RAD / 2)) / FIT_RADIUS;
+      camera.zoom = verticalZoom * Math.min(1, aspect);
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+
+    fitCameraToContainer(width, height);
+
     const handleResize = () => {
       if (!container) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      if (w > 0 && h > 0) {
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-      }
+      fitCameraToContainer(container.clientWidth, container.clientHeight);
     };
 
     window.addEventListener('resize', handleResize);

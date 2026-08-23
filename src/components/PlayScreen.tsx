@@ -16,6 +16,71 @@ interface PlayScreenProps {
 
 type GamePhase = 'lobby' | 'calibrating' | 'transitioning' | 'playing';
 
+/* ============================================================
+   GAMEPLAY PHYSICS — ported from WaterBowlProject (water-bowl-game.html)
+   instead of this app's original ad-hoc safeRadius/spillSpeedMult model.
+   Every tilt/sensitivity/spill/water-drain/calibration number below
+   matches that source exactly; only the screen UI below stays this app's own.
+   ============================================================ */
+const DEG2RAD = Math.PI / 180;
+
+// presetPercent equivalents for each difficulty, straight from
+// WaterBowlProject's DIFFICULTY_LEVELS (Easy..Master -> 70..90).
+const DIFFICULTY_PCT: Record<DifficultyLevel, number> = {
+  easy: 70,
+  normal: 75, // "Medium" in WaterBowlProject
+  hard: 80,
+  expert: 85,
+  master: 90,
+};
+
+const SPILL_RATE_BOOST = 1.3; // +30% spill speed once past the safe zone, every difficulty
+const CALIB_HOLD_SECONDS = 3;
+const KEYBOARD_TILT_SPEED = 55; // deg/sec, desktop/keyboard fallback
+
+// Inner "safe zone" circle diameter, straight from WaterBowlProject's own
+// DIFFICULTY_LEVELS.radarInnerDiaPx (44/32/22/15/10 px) — that page's radar
+// dial is a 96px container, exactly matching this app's corner play-state
+// dial (w-24 = 96px), so those values are used as-is there. The larger
+// calibration-view dial (208px) scales the same values up proportionally
+// so the safe zone reads at a consistent relative size in both places.
+const RADAR_INNER_DIA_PX: Record<DifficultyLevel, number> = {
+  easy: 44,
+  normal: 32,
+  hard: 22,
+  expert: 15,
+  master: 10,
+};
+const CALIB_DIAL_PX = 208;
+const PLAY_DIAL_PX = 96;
+
+function fromPercent(percent: number, min: number, max: number): number {
+  return min + (max - min) * Math.min(Math.max(percent / 100, 0), 1.5);
+}
+
+interface BowlCfg {
+  TILT_SENSITIVITY: number;
+  SPILL_THRESHOLD_DEG: number;
+  SPILL_RATE: number;
+  BOWL_FOLLOW_LERP: number;
+  MAX_TILT_DEG: number;
+}
+function computeCfg(pct: number): BowlCfg {
+  return {
+    TILT_SENSITIVITY: fromPercent(pct, 0.5, 2.5),
+    SPILL_THRESHOLD_DEG: Math.max(fromPercent(pct, 15, 1), 0.1),
+    SPILL_RATE: fromPercent(pct, 0.1, 2.0),
+    BOWL_FOLLOW_LERP: fromPercent(pct, 0.05, 0.6),
+    MAX_TILT_DEG: fromPercent(pct, 30, 60),
+  };
+}
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+function clamp(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
+}
+
 export const PlayScreen: React.FC<PlayScreenProps> = ({
   settings,
   profile,
@@ -54,6 +119,10 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     setHoldProgress(0);
     holdProgressRef.current = 0;
     lastTickSecRef.current = 4;
+    rawBetaRef.current = 0;
+    rawGammaRef.current = 0;
+    bowlTiltXRef.current = 0;
+    bowlTiltZRef.current = 0;
     onGameActiveChange?.(false);
     onQuitGame?.();
   }, [selectedDuration, onGameActiveChange, onQuitGame]);
@@ -90,17 +159,16 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // Game State
   const [waterLeft, setWaterLeft] = useState(100);
   const [timeLeft, setTimeLeft] = useState<number>(30);
-  const [tiltX, setTiltX] = useState(0); // -1 to 1
-  const [tiltY, setTiltY] = useState(0); // -1 to 1
+  const [tiltX, setTiltX] = useState(0); // normalized -1..1, for the UI dot + bowl visual only
+  const [tiltY, setTiltY] = useState(0); // (real gameplay math runs on bowlTiltXRef/bowlTiltZRef, in true degrees/radians)
   const [spillWarning, setSpillWarning] = useState<string | null>(null);
   const [isSpilling, setIsSpilling] = useState(false);
-  
+
   // Calibration State
   const [holdProgress, setHoldProgress] = useState(0); // 0 to 3 seconds
   const [isDotCentered, setIsDotCentered] = useState(false);
 
   // References for fast animation/interval loop
-  const tiltRef = useRef({ x: 0, y: 0 });
   const waterLeftRef = useRef(100);
   const timeLeftRef = useRef<number>(30);
   const gamePhaseRef = useRef<GamePhase>('lobby');
@@ -109,8 +177,19 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const lastSpillSoundTime = useRef(0);
   const animationReqRef = useRef<number | null>(null);
 
+  // WaterBowlProject-equivalent physics state: raw device tilt in degrees,
+  // and the bowl's actual (lerped/"follow") tilt in radians — the same two-
+  // stage model as updateKeyboardTilt()/updateBowlTiltFollow() in the source
+  // game. Everything gameplay-relevant (spill %, calibration "centered")
+  // reads bowlTiltXRef/bowlTiltZRef, never the UI-facing normalized tiltX/Y.
+  const rawBetaRef = useRef(0);
+  const rawGammaRef = useRef(0);
+  const bowlTiltXRef = useRef(0);
+  const bowlTiltZRef = useRef(0);
+  const cfgRef = useRef<BowlCfg>(computeCfg(DIFFICULTY_PCT[selectedDifficulty]));
+  const keysPressedRef = useRef<Set<string>>(new Set());
+
   // Keep refs in sync
-  tiltRef.current = { x: tiltX, y: tiltY };
   waterLeftRef.current = waterLeft;
   timeLeftRef.current = timeLeft;
   gamePhaseRef.current = gamePhase;
@@ -133,18 +212,16 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     }
   };
 
-  // Device orientation event listener
+  // Device orientation event listener — writes raw degrees only; the main
+  // loop below applies TILT_SENSITIVITY + BOWL_FOLLOW_LERP, exactly like
+  // WaterBowlProject's handleOrientation() + updateBowlTiltFollow().
   useEffect(() => {
     const handleOrientation = (e: DeviceOrientationEvent) => {
       if (gamePhaseRef.current === 'lobby') return;
       if (e.gamma === null || e.beta === null) return;
-
-      const sens = settings.sensitivity || 1.0;
-      const rawX = (e.gamma / 30) * sens;
-      const rawY = ((e.beta - 25) / 30) * sens;
-
-      setTiltX(Math.max(-1, Math.min(1, rawX)));
-      setTiltY(Math.max(-1, Math.min(1, rawY)));
+      const maxDeg = cfgRef.current.MAX_TILT_DEG;
+      rawBetaRef.current = clamp(e.beta, -maxDeg, maxDeg);
+      rawGammaRef.current = clamp(e.gamma, -maxDeg, maxDeg);
     };
 
     if (window.DeviceOrientationEvent) {
@@ -153,11 +230,14 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation);
     };
-  }, [settings.sensitivity]);
+  }, []);
 
-  // Keyboard controls for desktop testing (Arrow keys or WASD)
+  // Keyboard fallback (Arrow keys or WASD) + calibration/quit shortcuts.
+  // Just tracks which keys are down / handles one-shot key events here —
+  // the actual per-frame raw-tilt integration happens in the main loop
+  // below (updateKeyboardTilt()-equivalent), same structure as the source game.
   useEffect(() => {
-    const keysPressed = new Set<string>();
+    const keysPressed = keysPressedRef.current;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       keysPressed.add(e.key.toLowerCase());
@@ -183,30 +263,11 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
-    const keyInterval = setInterval(() => {
-      if (gamePhaseRef.current === 'lobby') return;
-      let dx = 0;
-      let dy = 0;
-      if (keysPressed.has('arrowleft') || keysPressed.has('a')) dx -= 0.6;
-      if (keysPressed.has('arrowright') || keysPressed.has('d')) dx += 0.6;
-      if (keysPressed.has('arrowup') || keysPressed.has('w')) dy -= 0.6;
-      if (keysPressed.has('arrowdown') || keysPressed.has('s')) dy += 0.6;
-
-      if (dx !== 0 || dy !== 0) {
-        setTiltX((prev) => Math.max(-1, Math.min(1, prev + dx * 0.15)));
-        setTiltY((prev) => Math.max(-1, Math.min(1, prev + dy * 0.15)));
-      } else {
-        // Natural gradual re-centering when key released
-        setTiltX((prev) => prev * 0.85);
-        setTiltY((prev) => prev * 0.85);
-      }
-    }, 30);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      clearInterval(keyInterval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Finish Game Handler
@@ -255,6 +316,11 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const startCalibration = () => {
     requestMotionPermission();
     if (settings.soundEnabled) soundService.playClick();
+    cfgRef.current = computeCfg(DIFFICULTY_PCT[selectedDifficulty]);
+    rawBetaRef.current = 0;
+    rawGammaRef.current = 0;
+    bowlTiltXRef.current = 0;
+    bowlTiltZRef.current = 0;
     setWaterLeft(100);
     setTimeLeft(selectedDuration);
     setTiltX(0);
@@ -268,32 +334,72 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     gamePhaseRef.current = 'calibrating';
   };
 
-  // Main Loop: handles calibration 3s countdown & main physics
+  // Main Loop: handles calibration 3s countdown & main physics — this is
+  // the WaterBowlProject tick(): updateKeyboardTilt() + updateBowlTiltFollow()
+  // + computeTiltAndSpill(), every frame, for both calibration and play.
   useEffect(() => {
     if (gamePhase === 'lobby') return;
 
     let lastTime = performance.now();
-    let walkPhase = 0;
 
     const loop = (now: number) => {
       const dt = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
 
-      // Pause update loop if quit confirmation modal is open
       if (showQuitConfirmRef.current) {
         animationReqRef.current = requestAnimationFrame(loop);
         return;
       }
 
-      // 1. CALIBRATION PHASE
+      const cfg = cfgRef.current;
+      const sensExtra = settings.sensitivity || 1;
+
+      // 1. Keyboard fallback -> raw degrees (decays toward 0 when no key held)
+      const keys = keysPressedRef.current;
+      if (keys.has('arrowup') || keys.has('w')) rawBetaRef.current -= KEYBOARD_TILT_SPEED * dt;
+      else if (keys.has('arrowdown') || keys.has('s')) rawBetaRef.current += KEYBOARD_TILT_SPEED * dt;
+      else rawBetaRef.current *= 0.9;
+      if (keys.has('arrowleft') || keys.has('a')) rawGammaRef.current -= KEYBOARD_TILT_SPEED * dt;
+      else if (keys.has('arrowright') || keys.has('d')) rawGammaRef.current += KEYBOARD_TILT_SPEED * dt;
+      else rawGammaRef.current *= 0.9;
+      rawBetaRef.current = clamp(rawBetaRef.current, -cfg.MAX_TILT_DEG, cfg.MAX_TILT_DEG);
+      rawGammaRef.current = clamp(rawGammaRef.current, -cfg.MAX_TILT_DEG, cfg.MAX_TILT_DEG);
+
+      // 2. No artificial "walk simulation" wobble here — WaterBowlProject's
+      // thresholds are tuned for genuine physical tilt from actually walking
+      // with a real device, not a synthetic oscillation layered on top (that
+      // combination made the bowl spill constantly from frame one). The
+      // Settings toggle for it stays in the UI but is a no-op against this
+      // physics model.
+      const effectiveBeta = clamp(rawBetaRef.current, -cfg.MAX_TILT_DEG, cfg.MAX_TILT_DEG);
+      const effectiveGamma = clamp(rawGammaRef.current, -cfg.MAX_TILT_DEG, cfg.MAX_TILT_DEG);
+
+      // 3. Bowl follows tilt input with its own lerp — real liquid/rigid-bowl
+      // lag, and (critically) what spill/calibration math reads, not the raw
+      // input directly.
+      const targetX = effectiveBeta * DEG2RAD * cfg.TILT_SENSITIVITY * sensExtra;
+      const targetZ = effectiveGamma * DEG2RAD * cfg.TILT_SENSITIVITY * sensExtra;
+      bowlTiltXRef.current = lerp(bowlTiltXRef.current, targetX, cfg.BOWL_FOLLOW_LERP);
+      bowlTiltZRef.current = lerp(bowlTiltZRef.current, targetZ, cfg.BOWL_FOLLOW_LERP);
+
+      const tiltMagRad = Math.hypot(bowlTiltXRef.current, bowlTiltZRef.current);
+      const tiltDeg = tiltMagRad / DEG2RAD;
+      let spillPercent = ((tiltDeg - cfg.SPILL_THRESHOLD_DEG) / (cfg.MAX_TILT_DEG - cfg.SPILL_THRESHOLD_DEG)) * 100;
+      spillPercent = clamp(spillPercent, 0, 100);
+
+      // Normalized -1..1 purely for the existing UI conventions (radar dot
+      // position + ThreeBowlCanvas's own visual tilt scale) — decoupled from
+      // the real degree-based gameplay math above.
+      const maxRotRad = cfg.MAX_TILT_DEG * DEG2RAD * cfg.TILT_SENSITIVITY * sensExtra || 1;
+      const normX = clamp(bowlTiltZRef.current / maxRotRad, -1, 1);
+      const normY = clamp(bowlTiltXRef.current / maxRotRad, -1, 1);
+      setTiltX(normX);
+      setTiltY(normY);
+
+      // 4. CALIBRATION PHASE — "centered" now means the same thing spilling
+      // does: inside the real SPILL_THRESHOLD_DEG cone, not an arbitrary UI radius.
       if (gamePhaseRef.current === 'calibrating') {
-        const curX = tiltRef.current.x;
-        const curY = tiltRef.current.y;
-        const distFromCenter = Math.sqrt(curX * curX + curY * curY);
-        
-        // Inner circle threshold for holding center
-        const centerThreshold = 0.24;
-        const isCenter = distFromCenter <= centerThreshold;
+        const isCenter = tiltDeg <= cfg.SPILL_THRESHOLD_DEG;
         setIsDotCentered(isCenter);
 
         if (isCenter) {
@@ -301,7 +407,6 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           holdProgressRef.current = nextHold;
           setHoldProgress(nextHold);
 
-          // Beep on integer seconds (3 -> 2 -> 1)
           const remainingSec = Math.ceil(3.0 - nextHold);
           if (remainingSec > 0 && remainingSec !== lastTickSecRef.current && remainingSec <= 3) {
             lastTickSecRef.current = remainingSec;
@@ -310,17 +415,15 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             }
           }
 
-          // Complete 3-second hold!
-          if (nextHold >= 3.0) {
+          if (nextHold >= CALIB_HOLD_SECONDS) {
             if (settings.soundEnabled) soundService.playCalibrationReady();
             if (settings.vibrationEnabled && 'vibrate' in navigator) {
               navigator.vibrate([40, 60, 40]);
             }
-            
-            // Trigger animation to bottom right
+
             setGamePhase('transitioning');
             gamePhaseRef.current = 'transitioning';
-            
+
             setTimeout(() => {
               setGamePhase('playing');
               gamePhaseRef.current = 'playing';
@@ -328,7 +431,6 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             return;
           }
         } else {
-          // If dot went outside center circle: reset 3-second countdown!
           if (holdProgressRef.current > 0) {
             holdProgressRef.current = 0;
             setHoldProgress(0);
@@ -340,74 +442,28 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
         return;
       }
 
-      // 2. PLAYING PHASE (Game active, physics running)
+      // 5. PLAYING PHASE — spill%/water-drain formula straight from
+      // WaterBowlProject's tick(): rate = SPILL_RATE * (spill%/100) * BOOST.
       if (gamePhaseRef.current === 'playing') {
-        // Decrement countdown timer
         const newTime = Math.max(0, timeLeftRef.current - dt);
         timeLeftRef.current = newTime;
         setTimeLeft(newTime);
 
-        // Check win condition when timer hits 0
         if (newTime <= 0) {
           const finalWater = waterLeftRef.current;
           finishGame(finalWater >= 50, finalWater, selectedDuration);
           return;
         }
 
-        // Calculate walking wobble perturbation if enabled
-        let walkX = 0;
-        let walkY = 0;
-        if (settings.walkSimulation) {
-          walkPhase += dt * 5.0; // footsteps rhythm
-          const walkIntensity =
-            selectedDifficulty === 'easy'
-              ? 0.08
-              : selectedDifficulty === 'normal'
-              ? 0.15
-              : selectedDifficulty === 'hard'
-              ? 0.24
-              : 0.32;
-          walkX = Math.sin(walkPhase) * walkIntensity;
-          walkY = Math.cos(walkPhase * 2) * walkIntensity * 0.7;
-        }
+        setIsSpilling(spillPercent > 0);
 
-        // Net tilt including user tilt and walking wobble
-        const netX = Math.max(-1, Math.min(1, tiltRef.current.x + walkX));
-        const netY = Math.max(-1, Math.min(1, tiltRef.current.y + walkY));
-        const tiltMagnitude = Math.sqrt(netX * netX + netY * netY);
-
-        // Difficulty Thresholds: safe radius before water begins spilling
-        const safeRadius =
-          selectedDifficulty === 'easy'
-            ? 0.45
-            : selectedDifficulty === 'normal'
-            ? 0.35
-            : selectedDifficulty === 'hard'
-            ? 0.26
-            : selectedDifficulty === 'expert'
-            ? 0.2
-            : 0.15;
-
-        const spillSpeedMult =
-          selectedDifficulty === 'easy'
-            ? 18
-            : selectedDifficulty === 'normal'
-            ? 26
-            : selectedDifficulty === 'hard'
-            ? 38
-            : 50;
-
-        if (tiltMagnitude > safeRadius) {
-          // We are spilling!
-          const excess = tiltMagnitude - safeRadius;
-          const spillAmount = excess * spillSpeedMult * dt;
-          const nextWater = Math.max(0, waterLeftRef.current - spillAmount);
+        if (spillPercent > 0) {
+          const rate = cfg.SPILL_RATE * (spillPercent / 100) * SPILL_RATE_BOOST; // fraction-per-second (0..1 scale)
+          const nextWater = Math.max(0, waterLeftRef.current - rate * dt * 100); // -> percent-per-second
           waterLeftRef.current = nextWater;
           setWaterLeft(nextWater);
-          setIsSpilling(true);
 
-          // Determine directional guidance for player
-          const angle = Math.atan2(netY, netX);
+          const angle = Math.atan2(normY, normX);
           let directionAdvice = 'Tilt device ';
           if (angle > -Math.PI / 4 && angle <= Math.PI / 4) {
             directionAdvice += 'left';
@@ -420,7 +476,6 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           }
           setSpillWarning(directionAdvice);
 
-          // Audio & vibration cues
           if (now - lastSpillSoundTime.current > 350) {
             lastSpillSoundTime.current = now;
             if (settings.soundEnabled) soundService.playSpill();
@@ -429,13 +484,11 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             }
           }
 
-          // Sudden death: if water drops to 0%, immediate game over
           if (nextWater <= 0) {
             finishGame(false, 0, selectedDuration - newTime);
             return;
           }
         } else {
-          setIsSpilling(false);
           setSpillWarning(null);
         }
       }
@@ -478,6 +531,10 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // Current Best Score
   const currentBestScore = highScores[selectedDifficulty] || 142;
 
+  // Safe-zone circle size for the current difficulty, in each dial context.
+  const innerDiaPlayPx = RADAR_INNER_DIA_PX[selectedDifficulty];
+  const innerDiaCalibPx = innerDiaPlayPx * (CALIB_DIAL_PX / PLAY_DIAL_PX);
+
   // ----------------------------------------------------
   // RENDER: GAMEPLAY & CALIBRATION VIEW
   // ----------------------------------------------------
@@ -499,8 +556,9 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
               isSpilling={isSpilling}
               interactive={true}
               onInteractiveTilt={(x, y) => {
-                setTiltX(x);
-                setTiltY(y);
+                const maxDeg = cfgRef.current.MAX_TILT_DEG;
+                rawGammaRef.current = x * maxDeg;
+                rawBetaRef.current = y * maxDeg;
               }}
               isDarkMode={isDarkMode}
             />
@@ -609,16 +667,18 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
               const rect = e.currentTarget.getBoundingClientRect();
               const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
               const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1;
-              setTiltX(Math.max(-1, Math.min(1, nx * 1.2)));
-              setTiltY(Math.max(-1, Math.min(1, ny * 1.2)));
+              const maxDeg = cfgRef.current.MAX_TILT_DEG;
+              rawGammaRef.current = clamp(nx * 1.2, -1, 1) * maxDeg;
+              rawBetaRef.current = clamp(ny * 1.2, -1, 1) * maxDeg;
             }}
             onTouchMove={(e) => {
               if (e.touches.length > 0) {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const nx = ((e.touches[0].clientX - rect.left) / rect.width) * 2 - 1;
                 const ny = ((e.touches[0].clientY - rect.top) / rect.height) * 2 - 1;
-                setTiltX(Math.max(-1, Math.min(1, nx * 1.2)));
-                setTiltY(Math.max(-1, Math.min(1, ny * 1.2)));
+                const maxDeg = cfgRef.current.MAX_TILT_DEG;
+                rawGammaRef.current = clamp(nx * 1.2, -1, 1) * maxDeg;
+                rawBetaRef.current = clamp(ny * 1.2, -1, 1) * maxDeg;
               }
             }}
           >
@@ -706,17 +766,23 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                   <line x1="0" y1="50" x2="100" y2="50" stroke="currentColor" strokeWidth="0.6" className="text-[#191c1e] dark:text-white" />
                 </svg>
 
-                {/* Safe Target Zone Circle */}
+                {/* Safe Target Zone Circle — sized per difficulty, straight
+                    from WaterBowlProject's radarInnerDiaPx (bigger on Easy,
+                    barely-bigger-than-the-dot on Master). */}
                 <div
                   className={`rounded-full border transition-all pointer-events-none ${
                     isCalibrating
                       ? isDotCentered
-                        ? 'w-16 h-16 border-[#005f9e] bg-[#005f9e]/15 animate-pulse'
-                        : 'w-16 h-16 border-[#cb4830] bg-[#cb4830]/10'
+                        ? 'border-[#005f9e] bg-[#005f9e]/15 animate-pulse'
+                        : 'border-[#cb4830] bg-[#cb4830]/10'
                       : isSpilling
-                      ? 'w-10 h-10 border-[#cb4830]/80 bg-[#cb4830]/15'
-                      : 'w-10 h-10 border-[#005f9e]/40 bg-[#005f9e]/10'
+                      ? 'border-[#cb4830]/80 bg-[#cb4830]/15'
+                      : 'border-[#005f9e]/40 bg-[#005f9e]/10'
                   }`}
+                  style={{
+                    width: isCalibrating ? innerDiaCalibPx : innerDiaPlayPx,
+                    height: isCalibrating ? innerDiaCalibPx : innerDiaPlayPx,
+                  }}
                 />
 
                 {/* Dynamic Position Dot */}
@@ -957,4 +1023,3 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     </div>
   );
 };
-

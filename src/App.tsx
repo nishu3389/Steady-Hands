@@ -101,9 +101,14 @@ export default function App() {
   const isDarkMode = true;
 
   return (
-    <div className="min-h-screen bg-[#f0f4f9] dark:bg-[#191c1e] text-[#191c1e] dark:text-[#eff1f4] flex flex-col justify-between transition-colors duration-200">
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col justify-start">
+    <div className="h-full bg-[#f0f4f9] dark:bg-[#191c1e] text-[#191c1e] dark:text-[#eff1f4] flex flex-col justify-between transition-colors duration-200">
+      {/* Main Content Area — the actual scroll container now (html/body/#root
+          are locked to the viewport, see index.css), so scrolling is fully
+          isolated from the fixed bottom nav instead of bouncing the whole
+          document. min-h-0 is required here: a flex child with flex-1 won't
+          actually shrink/scroll without it (flex items default to
+          min-height: auto, which fights overflow). */}
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col justify-start">
         <AnimatePresence mode="wait">
           {gameResult ? (
             <motion.div

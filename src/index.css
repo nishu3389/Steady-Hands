@@ -15,13 +15,24 @@
     user-select: none;
   }
 
-  body {
+  /* Lock the document itself to the viewport and never let IT scroll or
+     rubber-band — that's what made the fixed bottom nav visibly wobble
+     during the browser's elastic overscroll bounce, and made the whole app
+     read as "a webpage" instead of a native screen. Each screen's own
+     content area (see <main> in App.tsx) is the one actual scroll
+     container now, isolated from the viewport/bottom-nav layer entirely. */
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
     overscroll-behavior: none;
-    min-height: 100vh;
   }
 
   .pb-safe {
-    padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+    /* No artificial floor — only reserves space when the device actually
+       reports a safe-area inset (notch/gesture-nav). The old max(16px, ...)
+       always added a flat 16px gap under the bottom nav even on devices
+       with zero real inset. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .pt-safe {
     padding-top: max(16px, env(safe-area-inset-top, 16px));

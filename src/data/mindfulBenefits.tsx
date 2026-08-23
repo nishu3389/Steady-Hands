@@ -25,7 +25,7 @@ export interface MindfulBenefit {
 export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   {
     id: 1,
-    icon: (cls = 'w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]') => <Brain className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#005f9e] dark:text-[#9dcaff]') => <Brain className={cls} />,
     title: 'Laser-Sharp Focus',
     tagline: 'Attention Span',
     description:
@@ -33,7 +33,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 2,
-    icon: (cls = 'w-5 h-5 text-[#9a3412] dark:text-[#ffb4a0]') => <HeartPulse className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#9a3412] dark:text-[#ffb4a0]') => <HeartPulse className={cls} />,
     title: 'Nervous System Calming',
     tagline: 'Stress Reduction',
     description:
@@ -41,7 +41,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 3,
-    icon: (cls = 'w-5 h-5 text-[#007a6c] dark:text-[#66dbcb]') => <Compass className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#007a6c] dark:text-[#66dbcb]') => <Compass className={cls} />,
     title: 'Proprioception & Balance',
     tagline: 'Body Awareness',
     description:
@@ -49,7 +49,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 4,
-    icon: (cls = 'w-5 h-5 text-[#0284c7] dark:text-[#7dd3fc]') => <Wind className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#0284c7] dark:text-[#7dd3fc]') => <Wind className={cls} />,
     title: 'Natural Breath Regulation',
     tagline: 'Breathwork',
     description:
@@ -57,7 +57,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 5,
-    icon: (cls = 'w-5 h-5 text-[#d97706] dark:text-[#fde047]') => <Zap className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#d97706] dark:text-[#fde047]') => <Zap className={cls} />,
     title: 'Effortless Flow State',
     tagline: 'Cognitive Flow',
     description:
@@ -65,7 +65,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 6,
-    icon: (cls = 'w-5 h-5 text-[#7c3aed] dark:text-[#c4b5fd]') => <Eye className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#7c3aed] dark:text-[#c4b5fd]') => <Eye className={cls} />,
     title: 'Sensory Reset from Screen Fatigue',
     tagline: 'Mental Rest',
     description:
@@ -73,7 +73,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 7,
-    icon: (cls = 'w-5 h-5 text-[#059669] dark:text-[#6ee7b7]') => <ShieldCheck className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#059669] dark:text-[#6ee7b7]') => <ShieldCheck className={cls} />,
     title: 'Emotional Self-Regulation',
     tagline: 'Impulse Control',
     description:
@@ -81,7 +81,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 8,
-    icon: (cls = 'w-5 h-5 text-[#e11d48] dark:text-[#fda4af]') => <Activity className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#e11d48] dark:text-[#fda4af]') => <Activity className={cls} />,
     title: 'Postural Alignment',
     tagline: 'Physical Health',
     description:
@@ -89,7 +89,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 9,
-    icon: (cls = 'w-5 h-5 text-[#0891b2] dark:text-[#67e8f9]') => <Feather className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#0891b2] dark:text-[#67e8f9]') => <Feather className={cls} />,
     title: 'Active Zen Walking (Kinhin)',
     tagline: 'Somatic Meditation',
     description:
@@ -97,7 +97,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 10,
-    icon: (cls = 'w-5 h-5 text-[#ca8a04] dark:text-[#fef08a]') => <BatteryCharging className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#ca8a04] dark:text-[#fef08a]') => <BatteryCharging className={cls} />,
     title: 'Mental Energy Recharge',
     tagline: 'Cognitive Renewal',
     description:
@@ -105,7 +105,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 11,
-    icon: (cls = 'w-5 h-5 text-[#16a34a] dark:text-[#86efac]') => <Smile className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#16a34a] dark:text-[#86efac]') => <Smile className={cls} />,
     title: 'Anxiety Release',
     tagline: 'Tension Relief',
     description:
@@ -113,7 +113,7 @@ export const MINDFUL_BENEFITS: MindfulBenefit[] = [
   },
   {
     id: 12,
-    icon: (cls = 'w-5 h-5 text-[#9333ea] dark:text-[#d8b4fe]') => <Sparkles className={cls} />,
+    icon: (cls = 'w-8 h-8 text-[#9333ea] dark:text-[#d8b4fe]') => <Sparkles className={cls} />,
     title: 'Neuroplasticity & Motor Memory',
     tagline: 'Brain Plasticity',
     description:

@@ -47,9 +47,14 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
     setActiveTab(tab);
   };
 
+  // No min-h-screen on the root below, on purpose — this screen is already
+  // stretched by its flex-1 parent in App.tsx. Forcing an extra 100vh floor
+  // on top of that made even short content (e.g. the How to Play tab)
+  // taller than it needed to be, enabling scroll/bounce when everything
+  // already fit on screen.
   return (
-    <div className="flex flex-col w-full max-w-sm mx-auto min-h-screen">
-      {/* Sticky Top Header Section (Tabs + Title) */}
+    <div className="flex flex-col w-full max-w-sm mx-auto">
+      {/* Sticky Top Header Section (Tabs only — title scrolls with content) */}
       <div className="sticky top-0 z-20 bg-[#f0f4f9] dark:bg-[#191c1e] px-4 sm:px-6 pt-4 pb-3 flex flex-col gap-4 border-b border-black/[0.04] dark:border-white/[0.04]">
         {/* Top Segmented Tab Switcher */}
         <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 flex items-center justify-between neumorphic-inset">
@@ -77,9 +82,12 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
             Mind & Body
           </button>
         </div>
+      </div>
 
+      {/* Scrollable Content Section (title scrolls away with everything else) */}
+      <div className="flex-1 px-4 sm:px-6 pt-3 pb-28">
         {/* Title & Subtitle Header */}
-        <div className="flex flex-col items-center gap-1 text-center">
+        <div className="flex flex-col items-center gap-1 text-center pb-4">
           <h1 className="text-xl sm:text-2xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
             {activeTab === 'howToPlay' ? 'Steady Hands Guide' : 'Mind & Body Benefits'}
           </h1>
@@ -89,10 +97,7 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
               : 'A physical mindfulness exercise in somatic awareness.'}
           </p>
         </div>
-      </div>
 
-      {/* Scrollable Content Section */}
-      <div className="flex-1 px-4 sm:px-6 pt-3 pb-28">
         {activeTab === 'howToPlay' ? (
           <div className="flex flex-col gap-6 animate-fade-in">
             <div className="flex flex-col gap-4 relative mt-1">
@@ -129,27 +134,31 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-5 animate-fade-in">
-            <div className="flex flex-col gap-3.5">
-              {MINDFUL_BENEFITS.map((benefit) => (
+          <div className="flex flex-col gap-6 animate-fade-in">
+            {/* Only the top 4 benefits shown here — fewer, bigger, easier to
+                actually read than all 12 crammed into small cards. The full
+                list still powers the lobby tip cycler and match-result
+                callouts elsewhere (see MINDFUL_BENEFITS usages). */}
+            <div className="flex flex-col gap-5">
+              {MINDFUL_BENEFITS.slice(0, 4).map((benefit) => (
                 <div
                   key={benefit.id}
-                  className="p-4 rounded-2xl bg-white dark:bg-[#191c1e] card-raised border border-white/60 dark:border-transparent flex flex-col gap-2 transition-all"
+                  className="p-5 rounded-2xl bg-white dark:bg-[#191c1e] card-raised border border-white/60 dark:border-transparent flex flex-col gap-3 transition-all"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/10 dark:border-[#9dcaff]/15 shrink-0 shadow-inner">
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 rounded-2xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/10 dark:border-[#9dcaff]/15 shrink-0 shadow-inner">
                       {benefit.icon()}
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#005f9e] dark:text-[#9dcaff]">
+                      <span className="text-xs uppercase font-bold tracking-wider text-[#005f9e] dark:text-[#9dcaff]">
                         {benefit.tagline}
                       </span>
-                      <h3 className="font-extrabold text-sm sm:text-base text-[#191c1e] dark:text-[#eff1f4] leading-snug">
+                      <h3 className="font-extrabold text-lg sm:text-xl text-[#191c1e] dark:text-[#eff1f4] leading-snug">
                         {benefit.title}
                       </h3>
                     </div>
                   </div>
-                  <p className="text-xs sm:text-sm text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed pl-1 pt-0.5">
+                  <p className="text-sm sm:text-base text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed pl-1 pt-0.5">
                     {benefit.description}
                   </p>
                 </div>

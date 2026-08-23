@@ -44,8 +44,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   ];
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 pb-safe bg-[#f0f4f9]/90 dark:bg-[#191c1e]/90 backdrop-blur-md transition-colors duration-200 shadow-[0_-1px_6px_rgba(0,0,0,0.03)]">
-      <div className="h-20 px-4 flex items-center justify-around max-w-lg mx-auto w-full">
+    <nav className="fixed bottom-0 inset-x-0 z-50 pb-safe px-4 pointer-events-none">
+      <div className="h-20 px-2 flex items-center justify-around max-w-lg mx-auto w-full rounded-3xl bg-[#f0f4f9]/90 dark:bg-[#191c1e]/90 backdrop-blur-md transition-colors duration-200 shadow-[0_-10px_28px_rgba(0,0,0,0.16)] dark:shadow-[0_-10px_28px_rgba(0,0,0,0.5)] border border-white/60 dark:border-white/5 pointer-events-auto">
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
           return (

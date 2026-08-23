@@ -888,7 +888,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // RENDER: LOBBY VIEW (matching exact light mode design)
   // ----------------------------------------------------
   return (
-    <div className="flex flex-col w-full max-w-sm mx-auto items-center justify-between min-h-[calc(100vh-160px)] px-6 pt-4 pb-24 gap-5 select-none">
+    <div className="flex flex-col w-full max-w-sm mx-auto items-center justify-between min-h-[calc(100vh-160px)] px-6 pt-4 pb-40 gap-5 select-none">
       {/* Best Score Card */}
       <div className="w-full bg-white dark:bg-[#191c1e] rounded-2xl p-4 flex flex-col items-center justify-center card-raised border border-white/60 dark:border-transparent">
         <span className="text-[12px] font-bold text-[#404751] dark:text-[#c0c7d3] mb-1 tracking-[0.1em] uppercase">

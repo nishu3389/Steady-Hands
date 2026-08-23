@@ -3,6 +3,7 @@ export type DurationOption = 20 | 30 | 60;
 export type NavigationTab = 'play' | 'instructions' | 'leaderboard' | 'settings';
 export type GameMode = 'lobby' | 'playing' | 'result';
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type FontSizeOption = 'default' | 'medium' | 'large';
 
 export interface LeaderboardEntry {
   id: string;
@@ -28,6 +29,7 @@ export interface GameSettings {
   soundEnabled: boolean;
   vibrationEnabled: boolean;
   sensitivity: number; // 0.5 to 2.0
+  fontSize: FontSizeOption;
 }
 
 export interface GameResult {

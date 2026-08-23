@@ -44,6 +44,23 @@ export default function App() {
     }
   }, [settings.theme]);
 
+  // Apply Font Size scaling globally to root element
+  useEffect(() => {
+    const root = document.documentElement;
+    switch (settings.fontSize) {
+      case 'medium':
+        root.style.fontSize = '110%';
+        break;
+      case 'large':
+        root.style.fontSize = '120%';
+        break;
+      case 'default':
+      default:
+        root.style.fontSize = '100%';
+        break;
+    }
+  }, [settings.fontSize]);
+
   // Handle Game Over
   const handleGameOver = (result: GameResult) => {
     setIsGameActive(false);

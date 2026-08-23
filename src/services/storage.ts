@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   soundEnabled: true,
   vibrationEnabled: true,
   sensitivity: 1.0,
+  fontSize: 'default',
 };
 
 const DEFAULT_PROFILE: UserProfile = {

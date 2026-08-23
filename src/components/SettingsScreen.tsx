@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { GameSettings, ThemeMode, UserProfile } from '../types';
-import { Sun, Moon, Smartphone, Volume2, VolumeX, UserCheck, ShieldCheck } from 'lucide-react';
+import { FontSizeOption, GameSettings, ThemeMode, UserProfile } from '../types';
+import { Sun, Moon, Smartphone, Volume2, VolumeX, UserCheck, ShieldCheck, Type } from 'lucide-react';
 import { soundService } from '../services/audio';
 
 interface SettingsScreenProps {
@@ -35,6 +35,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     onUpdateSettings({ ...settings, sensitivity: val });
   };
 
+  const handleFontSizeChange = (fontSize: FontSizeOption) => {
+    if (settings.soundEnabled) soundService.playClick();
+    onUpdateSettings({ ...settings, fontSize });
+  };
+
   const handleGoogleSignIn = () => {
     if (settings.soundEnabled) soundService.playClick();
     if (profile.isSignedIn) {
@@ -55,11 +60,64 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     }
   };
 
+  const currentFontSize = settings.fontSize || 'default';
+
   return (
     <div className="flex flex-col w-full max-w-sm mx-auto p-4 sm:p-6 gap-6 pb-28 pt-6">
       {/* Theme Section hidden for now — dark theme is the fixed default
           (see DEFAULT_SETTINGS in services/storage.ts). handleThemeChange
           stays defined in case this comes back. */}
+
+      {/* Text Size / Display Scaling Section */}
+      <section className="flex flex-col gap-2">
+        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Text Size</h2>
+        <div className="p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised flex flex-col gap-3.5 border border-white/60 dark:border-transparent">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 text-[#191c1e] dark:text-[#eff1f4]">
+              <Type className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
+              <span className="font-medium text-base">App Font Scale</span>
+            </div>
+            <span className="font-bold text-xs sm:text-sm text-[#005f9e] dark:text-[#9dcaff]">
+              {currentFontSize === 'default'
+                ? 'Normal (100%)'
+                : currentFontSize === 'medium'
+                ? 'Medium (110%)'
+                : 'Large (120%)'}
+            </span>
+          </div>
+
+          {/* Segmented Font Size Options */}
+          <div className="flex bg-[#e9edf2] dark:bg-[#162B3B] rounded-xl p-1 shadow-inner gap-1">
+            {[
+              { key: 'default' as FontSizeOption, label: 'Normal' },
+              { key: 'medium' as FontSizeOption, label: 'Medium' },
+              { key: 'large' as FontSizeOption, label: 'Large' },
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleFontSizeChange(item.key)}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                  currentFontSize === item.key
+                    ? 'bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-sm'
+                    : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
+                }`}
+              >
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Live Preview Sample */}
+          <div className="p-3 rounded-xl bg-[#f0f4f9] dark:bg-[#0e1720] border border-black/5 dark:border-white/5 flex flex-col gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#707882]">
+              Live Preview
+            </span>
+            <p className="text-xs sm:text-sm text-[#191c1e] dark:text-[#eff1f4] leading-relaxed">
+              Hold your phone flat and steady to keep the water centered.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Audio Section */}
       <section className="flex flex-col gap-2">
@@ -154,7 +212,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     />
                     <button
                       onClick={handleSaveName}
-                      className="px-3 py-1 bg-[#005f9e] text-white rounded-lg text-xs font-bold"
+                      className="px-3 py-1 bg-[#005f9e] text-white rounded-lg text-xs font-bold cursor-pointer"
                     >
                       Save
                     </button>
@@ -166,7 +224,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     </span>
                     <button
                       onClick={() => setEditingName(true)}
-                      className="text-xs text-[#005f9e] dark:text-[#9dcaff] underline"
+                      className="text-xs text-[#005f9e] dark:text-[#9dcaff] underline cursor-pointer"
                     >
                       edit
                     </button>

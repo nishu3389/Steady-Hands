@@ -48,127 +48,127 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full max-w-sm mx-auto p-4 sm:p-6 gap-5 pb-28 pt-4">
-      {/* Top Segmented Tab Switcher */}
-      <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 flex items-center justify-between neumorphic-inset">
-        <button
-          onClick={() => handleTabSwitch('howToPlay')}
-          className={`flex-1 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
-            activeTab === 'howToPlay'
-              ? 'neumorphic-inset bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-inner'
-              : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
-          }`}
-        >
-          <BookOpen className="w-4 h-4" />
-          How to Play
-        </button>
+    <div className="flex flex-col w-full max-w-sm mx-auto min-h-screen">
+      {/* Sticky Top Header Section (Tabs + Title) */}
+      <div className="sticky top-0 z-20 bg-[#f0f4f9] dark:bg-[#191c1e] px-4 sm:px-6 pt-4 pb-3 flex flex-col gap-4 border-b border-black/[0.04] dark:border-white/[0.04]">
+        {/* Top Segmented Tab Switcher */}
+        <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 flex items-center justify-between neumorphic-inset">
+          <button
+            onClick={() => handleTabSwitch('howToPlay')}
+            className={`flex-1 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'howToPlay'
+                ? 'neumorphic-inset bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-inner'
+                : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            How to Play
+          </button>
 
-        <button
-          onClick={() => handleTabSwitch('benefits')}
-          className={`flex-1 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
-            activeTab === 'benefits'
-              ? 'neumorphic-inset bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-inner'
-              : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          Mind & Body
-        </button>
+          <button
+            onClick={() => handleTabSwitch('benefits')}
+            className={`flex-1 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'benefits'
+                ? 'neumorphic-inset bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-inner'
+                : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            Mind & Body
+          </button>
+        </div>
+
+        {/* Title & Subtitle Header */}
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
+            {activeTab === 'howToPlay' ? 'Steady Hands Guide' : 'Mind & Body Benefits'}
+          </h1>
+          <p className="text-xs sm:text-sm text-[#404751] dark:text-[#a0a8b4] leading-snug">
+            {activeTab === 'howToPlay'
+              ? "Keep a steady hand and don't spill the water!"
+              : 'A physical mindfulness exercise in somatic awareness.'}
+          </p>
+        </div>
       </div>
 
-      {activeTab === 'howToPlay' ? (
-        <div className="flex flex-col gap-6 animate-fade-in">
-          <div className="flex flex-col items-center gap-1.5 text-center">
-            <h1 className="text-2xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
-              Steady Hands Guide
-            </h1>
-            <p className="text-sm text-[#404751] dark:text-[#c0c7d3]">
-              Keep a steady hand and don't spill the water!
-            </p>
-          </div>
+      {/* Scrollable Content Section */}
+      <div className="flex-1 px-4 sm:px-6 pt-3 pb-28">
+        {activeTab === 'howToPlay' ? (
+          <div className="flex flex-col gap-6 animate-fade-in">
+            <div className="flex flex-col gap-4 relative mt-1">
+              {/* Timeline Connecting Line */}
+              <div className="absolute w-1 bg-[#e0e3e6] dark:bg-[#2d3133] h-[82%] left-7 top-6 rounded-full z-0" />
 
-          <div className="flex flex-col gap-4 relative mt-1">
-            {/* Timeline Connecting Line */}
-            <div className="absolute w-1 bg-[#e0e3e6] dark:bg-[#2d3133] h-[82%] left-7 top-6 rounded-full z-0" />
+              {steps.map((step) => (
+                <div key={step.num} className="flex items-center gap-4 relative z-10">
+                  {/* Number Badge */}
+                  <div className="w-14 h-14 rounded-full bg-white dark:bg-[#191c1e] shrink-0 flex items-center justify-center card-raised text-[#005f9e] dark:text-[#9dcaff] font-extrabold text-xl border border-white/80 dark:border-transparent">
+                    {step.num}
+                  </div>
 
-            {steps.map((step) => (
-              <div key={step.num} className="flex items-center gap-4 relative z-10">
-                {/* Number Badge */}
-                <div className="w-14 h-14 rounded-full bg-white dark:bg-[#191c1e] shrink-0 flex items-center justify-center card-raised text-[#005f9e] dark:text-[#9dcaff] font-extrabold text-xl border border-white/80 dark:border-transparent">
-                  {step.num}
+                  {/* Content Card */}
+                  <div className="flex-1 rounded-2xl p-4 bg-white dark:bg-[#191c1e] card-raised flex items-center gap-3.5 border border-white/60 dark:border-transparent">
+                    <div className="shrink-0">{step.icon}</div>
+                    <p className="text-sm font-semibold text-[#191c1e] dark:text-[#eff1f4] leading-snug">
+                      {step.text}
+                    </p>
+                  </div>
                 </div>
+              ))}
+            </div>
 
-                {/* Content Card */}
-                <div className="flex-1 rounded-2xl p-4 bg-white dark:bg-[#191c1e] card-raised flex items-center gap-3.5 border border-white/60 dark:border-transparent">
-                  <div className="shrink-0">{step.icon}</div>
-                  <p className="text-sm font-semibold text-[#191c1e] dark:text-[#eff1f4] leading-snug">
-                    {step.text}
+            {/* Action Button */}
+            <div className="mt-2 w-full flex justify-center">
+              <button
+                onClick={handleGotIt}
+                className="w-full max-w-[280px] h-14 rounded-full bg-white dark:bg-[#191c1e] card-raised text-[#005f9e] dark:text-[#9dcaff] font-bold text-lg active:neumorphic-inset transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/80 dark:border-transparent shadow-md"
+              >
+                Got it
+                <CheckCircle2 className="w-6 h-6 text-[#005f9e] dark:text-[#9dcaff]" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5 animate-fade-in">
+            <div className="flex flex-col gap-3.5">
+              {MINDFUL_BENEFITS.map((benefit) => (
+                <div
+                  key={benefit.id}
+                  className="p-4 rounded-2xl bg-white dark:bg-[#191c1e] card-raised border border-white/60 dark:border-transparent flex flex-col gap-2 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/10 dark:border-[#9dcaff]/15 shrink-0 shadow-inner">
+                      {benefit.icon()}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#005f9e] dark:text-[#9dcaff]">
+                        {benefit.tagline}
+                      </span>
+                      <h3 className="font-extrabold text-sm sm:text-base text-[#191c1e] dark:text-[#eff1f4] leading-snug">
+                        {benefit.title}
+                      </h3>
+                    </div>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed pl-1 pt-0.5">
+                    {benefit.description}
                   </p>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {/* Action Button */}
-          <div className="mt-2 w-full flex justify-center">
-            <button
-              onClick={handleGotIt}
-              className="w-full max-w-[280px] h-14 rounded-full bg-white dark:bg-[#191c1e] card-raised text-[#005f9e] dark:text-[#9dcaff] font-bold text-lg active:neumorphic-inset transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/80 dark:border-transparent shadow-md"
-            >
-              Got it
-              <CheckCircle2 className="w-6 h-6 text-[#005f9e] dark:text-[#9dcaff]" />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-5 animate-fade-in">
-          <div className="flex flex-col items-center gap-1.5 text-center">
-            <h1 className="text-2xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
-              Mind & Body Benefits
-            </h1>
-            <p className="text-sm text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed">
-              A physical mindfulness exercise rooted in somatic awareness and balance.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3.5">
-            {MINDFUL_BENEFITS.map((benefit) => (
-              <div
-                key={benefit.id}
-                className="p-4 rounded-2xl bg-white dark:bg-[#191c1e] card-raised border border-white/60 dark:border-transparent flex flex-col gap-2 transition-all"
+            {/* Action Button */}
+            <div className="mt-2 w-full flex justify-center">
+              <button
+                onClick={handleGotIt}
+                className="w-full max-w-[280px] h-14 rounded-full bg-white dark:bg-[#191c1e] card-raised text-[#005f9e] dark:text-[#9dcaff] font-bold text-lg active:neumorphic-inset transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/80 dark:border-transparent shadow-md"
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/10 dark:border-[#9dcaff]/15 shrink-0 shadow-inner">
-                    {benefit.icon()}
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#005f9e] dark:text-[#9dcaff]">
-                      {benefit.tagline}
-                    </span>
-                    <h3 className="font-extrabold text-sm sm:text-base text-[#191c1e] dark:text-[#eff1f4] leading-snug">
-                      {benefit.title}
-                    </h3>
-                  </div>
-                </div>
-                <p className="text-xs sm:text-sm text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed pl-1 pt-0.5">
-                  {benefit.description}
-                </p>
-              </div>
-            ))}
+                Start Practicing
+                <CheckCircle2 className="w-6 h-6 text-[#005f9e] dark:text-[#9dcaff]" />
+              </button>
+            </div>
           </div>
-
-          {/* Action Button */}
-          <div className="mt-2 w-full flex justify-center">
-            <button
-              onClick={handleGotIt}
-              className="w-full max-w-[280px] h-14 rounded-full bg-white dark:bg-[#191c1e] card-raised text-[#005f9e] dark:text-[#9dcaff] font-bold text-lg active:neumorphic-inset transition-all flex items-center justify-center gap-2 cursor-pointer border border-white/80 dark:border-transparent shadow-md"
-            >
-              Start Practicing
-              <CheckCircle2 className="w-6 h-6 text-[#005f9e] dark:text-[#9dcaff]" />
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

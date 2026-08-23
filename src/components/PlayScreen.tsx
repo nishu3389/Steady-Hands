@@ -1072,8 +1072,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           </span>
 
           {/* Large Inset Container for segments */}
-          <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 neumorphic-inset flex items-center overflow-x-auto snap-x hide-scrollbar">
-            <div className="flex items-center gap-2 px-1 min-w-max">
+          <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 neumorphic-inset flex items-center overflow-x-auto snap-x scroll-px-3.5 scroll-smooth hide-scrollbar">
+            <div className="flex items-center gap-2 px-3.5 min-w-max">
               {[
                 { key: 'easy', label: 'Easy' },
                 { key: 'normal', label: 'Medium' },

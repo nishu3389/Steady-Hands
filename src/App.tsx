@@ -1,0 +1,194 @@
+import React, { useState, useEffect } from 'react';
+import { GameResult, GameSettings, LeaderboardEntry, NavigationTab, UserProfile } from './types';
+import { storageService } from './services/storage';
+import { BottomNav } from './components/BottomNav';
+import { PlayScreen } from './components/PlayScreen';
+import { InstructionsScreen } from './components/InstructionsScreen';
+import { LeaderboardScreen } from './components/LeaderboardScreen';
+import { SettingsScreen } from './components/SettingsScreen';
+import { MatchResultsModal } from './components/MatchResultsModal';
+import { AnimatePresence, motion } from 'motion/react';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<NavigationTab>('play');
+  const [settings, setSettings] = useState<GameSettings>(() => storageService.getSettings());
+  const [profile, setProfile] = useState<UserProfile>(() => storageService.getProfile());
+  const [highScores, setHighScores] = useState(() => storageService.getHighScores());
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(() => storageService.getLeaderboard());
+  const [gameResult, setGameResult] = useState<GameResult | null>(null);
+  const [isGameActive, setIsGameActive] = useState(false);
+  const [gameSessionKey, setGameSessionKey] = useState(0);
+
+  const handleBack = () => {
+    setGameResult(null);
+    setIsGameActive(false);
+    setGameSessionKey((prev) => prev + 1);
+  };
+
+  // Apply Theme (Light / Dark / System)
+  useEffect(() => {
+    const root = document.documentElement;
+    const isDark =
+      settings.theme === 'dark' ||
+      (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    if (isDark) {
+      root.classList.add('dark');
+      root.style.backgroundColor = '#191c1e';
+      root.style.color = '#eff1f4';
+    } else {
+      root.classList.remove('dark');
+      root.style.backgroundColor = '#f0f4f9';
+      root.style.color = '#191c1e';
+    }
+  }, [settings.theme]);
+
+  // Handle Game Over
+  const handleGameOver = (result: GameResult) => {
+    setIsGameActive(false);
+    setGameResult(result);
+
+    if (result.isWin) {
+      // Save high score
+      storageService.saveHighScore(result.difficulty, result.finalScore);
+      setHighScores(storageService.getHighScores());
+
+      // Update streak
+      const updatedStreak = storageService.updateStreak();
+      setProfile((prev) => ({ ...prev, streak: updatedStreak }));
+
+      // Add to leaderboard
+      storageService.addLeaderboardEntry({
+        name: profile.name,
+        score: result.finalScore,
+        difficulty: result.difficulty,
+        duration: result.totalDuration >= 50 ? 60 : result.totalDuration >= 25 ? 30 : 20,
+        waterRemaining: result.waterRemaining,
+      });
+      setLeaderboard(storageService.getLeaderboard());
+    }
+  };
+
+  const handleUpdateSettings = (newSettings: GameSettings) => {
+    setSettings(newSettings);
+    storageService.saveSettings(newSettings);
+  };
+
+  const handleUpdateProfile = (newProfile: UserProfile) => {
+    setProfile(newProfile);
+    storageService.saveProfile(newProfile);
+  };
+
+  const isDarkMode =
+    settings.theme === 'dark' ||
+    (settings.theme === 'system' &&
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  return (
+    <div className="min-h-screen bg-[#f0f4f9] dark:bg-[#191c1e] text-[#191c1e] dark:text-[#eff1f4] flex flex-col justify-between transition-colors duration-200">
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col justify-start">
+        <AnimatePresence mode="wait">
+          {gameResult ? (
+            <motion.div
+              key="result"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="w-full flex-1 flex items-center justify-center"
+            >
+              <MatchResultsModal
+                result={gameResult}
+                onTryAgain={() => setGameResult(null)}
+                onOpenLeaderboard={() => {
+                  setGameResult(null);
+                  setActiveTab('leaderboard');
+                }}
+                soundEnabled={settings.soundEnabled}
+              />
+            </motion.div>
+          ) : activeTab === 'play' ? (
+            <motion.div
+              key={`play-${gameSessionKey}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="w-full flex-1 flex flex-col"
+            >
+              <PlayScreen
+                key={gameSessionKey}
+                settings={settings}
+                profile={profile}
+                highScores={highScores}
+                onGameOver={handleGameOver}
+                isDarkMode={isDarkMode}
+                onGameActiveChange={setIsGameActive}
+                onQuitGame={handleBack}
+              />
+            </motion.div>
+          ) : activeTab === 'instructions' ? (
+            <motion.div
+              key="instructions"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="w-full flex-1"
+            >
+              <InstructionsScreen
+                onGotIt={() => setActiveTab('play')}
+                soundEnabled={settings.soundEnabled}
+              />
+            </motion.div>
+          ) : activeTab === 'leaderboard' ? (
+            <motion.div
+              key="leaderboard"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="w-full flex-1"
+            >
+              <LeaderboardScreen
+                entries={leaderboard}
+                onPlayNow={() => setActiveTab('play')}
+                soundEnabled={settings.soundEnabled}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="w-full flex-1"
+            >
+              <SettingsScreen
+                settings={settings}
+                onUpdateSettings={handleUpdateSettings}
+                profile={profile}
+                onUpdateProfile={handleUpdateProfile}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* Bottom Tab Bar (hidden while playing or during match results to prevent switching screens) */}
+      {!gameResult && !isGameActive && (
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            setGameResult(null);
+            setActiveTab(tab);
+          }}
+          soundEnabled={settings.soundEnabled}
+        />
+      )}
+    </div>
+  );
+}

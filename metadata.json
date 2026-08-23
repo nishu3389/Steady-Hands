@@ -1,0 +1,6 @@
+{
+  "name": "Steady Hands",
+  "description": "A tactile physical balance game where you keep a steady hand to avoid spilling the water in the bowl.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

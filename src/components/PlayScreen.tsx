@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { DifficultyLevel, DurationOption, GameResult, GameSettings, UserProfile } from '../types';
-import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Footprints, Activity, Navigation, MapPin } from 'lucide-react';
+import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Footprints, Activity, Navigation, MapPin, Volume2, VolumeX } from 'lucide-react';
 import { ThreeBowlCanvas } from './ThreeBowlCanvas';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
@@ -571,26 +571,31 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       setTiltX(normX);
       setTiltY(normY);
 
-      // 4. CALIBRATION PHASE — "centered" now means the same thing spilling
-      // does: inside the real SPILL_THRESHOLD_DEG cone, not an arbitrary UI radius.
+      // 4. CALIBRATION PHASE — Smooth continuous settling with grace zone & gentle decay
+      // Instead of jarring all-or-nothing instant resets on micro-jitters, progress
+      // glides forward when centered (with a +25% settling tolerance) and gently decays
+      // at half-speed when tilted, creating a calm, supportive biofeedback loop.
       if (gamePhaseRef.current === 'calibrating') {
-        const isCenter = tiltDeg <= cfg.SPILL_THRESHOLD_DEG;
+        const calibTolerance = cfg.SPILL_THRESHOLD_DEG * 1.25; // 25% grace margin for initial hand settling
+        const isCenter = tiltDeg <= calibTolerance;
         setIsDotCentered(isCenter);
 
         if (isCenter) {
-          const nextHold = Math.min(3.0, holdProgressRef.current + dt);
+          // Progress forward smoothly toward 2.4s (smooth continuous calibration duration)
+          const nextHold = Math.min(2.4, holdProgressRef.current + dt);
           holdProgressRef.current = nextHold;
           setHoldProgress(nextHold);
 
-          const remainingSec = Math.ceil(3.0 - nextHold);
-          if (remainingSec > 0 && remainingSec !== lastTickSecRef.current && remainingSec <= 3) {
-            lastTickSecRef.current = remainingSec;
+          // Subtle harmonic tick at quarter milestones (1, 2) rather than flashing second jumps
+          const stepStage = Math.floor(nextHold / 0.8);
+          if (stepStage > 0 && stepStage !== lastTickSecRef.current && stepStage <= 2) {
+            lastTickSecRef.current = stepStage;
             if (settings.soundEnabled) {
-              soundService.playCountdownTick(remainingSec);
+              soundService.playCountdownTick(3 - stepStage);
             }
           }
 
-          if (nextHold >= CALIB_HOLD_SECONDS) {
+          if (nextHold >= 2.4) {
             walkingDetector.finishCalibrationRecording();
             walkingDetector.armStartupGrace(3400);
             if (settings.soundEnabled) soundService.playCalibrationReady();
@@ -611,10 +616,16 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             return;
           }
         } else {
+          // GENTLE DECAY: When outside the grace zone, do NOT wipe out to 0 immediately!
+          // Gently decay progress at half speed (dt * 0.6) so momentary hand tremors
+          // don't punish the player, allowing them to gently re-center without restarting from zero.
           if (holdProgressRef.current > 0) {
-            holdProgressRef.current = 0;
-            setHoldProgress(0);
-            lastTickSecRef.current = 4;
+            const decayedHold = Math.max(0, holdProgressRef.current - dt * 0.7);
+            holdProgressRef.current = decayedHold;
+            setHoldProgress(decayedHold);
+            if (decayedHold === 0) {
+              lastTickSecRef.current = 0;
+            }
           }
         }
 
@@ -711,8 +722,9 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     setSelectedDuration(dur);
   };
 
-  const remainingHoldSec = Math.max(1, Math.ceil(3.0 - holdProgress));
-  const holdFraction = Math.min(1, holdProgress / 3.0);
+  const calibTargetHold = 2.4;
+  const holdFraction = Math.min(1, holdProgress / calibTargetHold);
+  const calibPercent = Math.round(holdFraction * 100);
   const circleCircumference = 2 * Math.PI * 92; // for 200px container (r=92)
   const strokeOffset = circleCircumference * (1 - holdFraction);
 
@@ -806,30 +818,43 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             </div>
           </div>
 
-          {/* FULL SCREEN BIG ZOOMING COUNTDOWN OVERLAY */}
-          {isCalibrating && isDotCentered && (
-            <div
-              key={`countdown-${remainingHoldSec}`}
-              className="absolute inset-0 z-40 flex flex-col items-center justify-center pointer-events-none"
-            >
-              {/* Shockwave ripple rings */}
-              <div className="absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full border-4 border-[#38bdf8]/50 dark:border-[#38bdf8]/60 animate-countdown-ripple" />
+          {/* CALMING CONTINUOUS CALIBRATION OVERLAY (Replaces jerky integer resets with serene progress) */}
+          {isCalibrating && (
+            <div className="absolute inset-0 z-40 flex flex-col items-center justify-center pointer-events-none px-6">
+              {/* Soft pulsating ambient glow that intensifies smoothly with progress */}
               <div
-                className="absolute w-40 h-40 rounded-full border-2 border-amber-400/60 animate-countdown-ripple"
-                style={{ animationDelay: '0.12s' }}
+                className={`absolute w-64 h-64 rounded-full blur-3xl transition-all duration-700 ${
+                  isDotCentered
+                    ? 'bg-[#0078c6]/30 dark:bg-[#38bdf8]/25 scale-105'
+                    : 'bg-amber-500/20 dark:bg-amber-400/15 scale-95'
+                }`}
               />
 
-              {/* Radiant aura bloom */}
-              <div className="absolute w-64 h-64 rounded-full bg-gradient-to-tr from-[#005f9e]/50 via-[#38bdf8]/40 to-[#f59e0b]/30 blur-3xl opacity-80" />
+              {/* Central status card positioned right above the dial */}
+              <div className="mb-6 flex flex-col items-center text-center animate-fade-in transition-all duration-300">
+                <span
+                  className={`text-[11px] font-black uppercase tracking-[0.2em] px-3.5 py-1 rounded-full backdrop-blur-md shadow-md border mb-2 transition-colors duration-300 ${
+                    isDotCentered
+                      ? 'bg-[#005f9e]/85 text-white border-white/30'
+                      : 'bg-[#cb4830]/85 text-white border-white/20'
+                  }`}
+                >
+                  {isDotCentered ? 'CALIBRATING STEADINESS' : 'LEVEL THE BOWL'}
+                </span>
 
-              {/* Huge Zooming Number */}
-              <div className="relative flex flex-col items-center animate-countdown-zoom">
-                <span className="text-8xl sm:text-9xl md:text-[130px] font-black leading-none tracking-tight text-white drop-shadow-[0_10px_35px_rgba(0,0,0,0.8)] filter drop-shadow-[0_0_25px_rgba(56,189,248,0.7)] select-none">
-                  {remainingHoldSec}
-                </span>
-                <span className="mt-3 px-4 py-1.5 rounded-full bg-[#005f9e]/90 text-white text-xs sm:text-sm font-extrabold tracking-[0.25em] uppercase backdrop-blur-md shadow-xl border border-white/30">
-                  KEEP STEADY
-                </span>
+                <h3 className="text-2xl sm:text-3xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] tracking-tight">
+                  {isDotCentered
+                    ? calibPercent >= 85
+                      ? 'Almost Ready...'
+                      : 'Hold Steady...'
+                    : 'Center the Dot'}
+                </h3>
+
+                <p className="text-xs text-white/85 mt-1 font-medium drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] max-w-xs leading-relaxed">
+                  {isDotCentered
+                    ? `Stabilizing mind & posture • ${calibPercent}%`
+                    : 'Gently tilt your phone until the dot rests in the center'}
+                </p>
               </div>
             </div>
           )}
@@ -886,33 +911,18 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           <div
             className={`transition-all duration-500 ease-out z-30 pointer-events-none ${
               isCalibrating
-                ? 'absolute inset-0 flex flex-col items-center justify-center'
+                ? 'absolute inset-0 flex flex-col items-center justify-center pt-24'
                 : isTransitioning || isActuallyPlaying
                 ? 'absolute bottom-5 right-5 flex flex-col items-end justify-end'
                 : 'hidden'
             }`}
           >
-            {/* Center Prompt during calibration if dot is not centered */}
-            {isCalibrating && !isDotCentered && (
-              <div className="mb-4 flex flex-col items-center animate-fade-in text-center px-4">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-[#d1e4ff] bg-[#005f9e]/80 px-3 py-1 rounded-full backdrop-blur-md shadow-md mb-1.5">
-                  CALIBRATION
-                </span>
-                <h3 className="text-xl font-extrabold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                  Center the Dot to Start
-                </h3>
-                <p className="text-xs text-white/80 mt-0.5 font-medium">
-                  Tilt device or drag cursor into center target
-                </p>
-              </div>
-            )}
-
-            {/* Tactical Dial View (Scaled 200px in center when calibrating, 96px in corner during play) */}
+            {/* Tactical Dial View (Scaled 208px in center when calibrating, 96px in corner during play) */}
             <div
               className={`relative rounded-full transition-all duration-500 ease-out flex items-center justify-center ${
                 isCalibrating
                   ? isDotCentered
-                    ? 'w-44 h-44 opacity-40 bg-[#f7f9fc]/80 dark:bg-[#191c1e]/80 shadow-[0_10px_35px_rgba(0,0,0,0.5)] border border-white/50'
+                    ? 'w-52 h-52 bg-[#f7f9fc]/90 dark:bg-[#191c1e]/90 shadow-[0_12px_40px_rgba(0,0,0,0.6)] border-2 border-[#0078c6]/50 dark:border-[#38bdf8]/40'
                     : 'w-52 h-52 bg-[#f7f9fc] dark:bg-[#191c1e] shadow-[0_10px_35px_rgba(0,0,0,0.5),-6px_-6px_16px_#ffffff,6px_6px_16px_#d1d9e6] dark:shadow-[0_10px_35px_rgba(0,0,0,0.8),-6px_-6px_16px_#162B3B,6px_6px_16px_#050B10] border-2 border-white/90 dark:border-white/20'
                   : 'w-24 h-24 bg-[#f7f9fc] dark:bg-[#162B3B] neumorphic-inset border border-black/5 dark:border-white/5'
               }`}
@@ -927,7 +937,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                     r="92"
                     fill="none"
                     stroke="#d1d9e6"
-                    strokeWidth="5"
+                    strokeWidth="6"
                     className="opacity-40"
                   />
                   {/* Active Progress Fill */}
@@ -936,13 +946,13 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                     cy="100"
                     r="92"
                     fill="none"
-                    stroke={isDotCentered ? '#005f9e' : '#cb4830'}
-                    strokeWidth="6"
+                    stroke={isDotCentered ? '#0078c6' : '#cb4830'}
+                    strokeWidth="8"
                     strokeLinecap="round"
                     style={{
                       strokeDasharray: circleCircumference,
                       strokeDashoffset: strokeOffset,
-                      transition: 'stroke-dashoffset 0.08s linear, stroke 0.2s ease',
+                      transition: 'stroke-dashoffset 0.08s linear, stroke 0.25s ease',
                     }}
                   />
                 </svg>
@@ -958,14 +968,12 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                   <line x1="0" y1="50" x2="100" y2="50" stroke="currentColor" strokeWidth="0.6" className="text-[#191c1e] dark:text-white" />
                 </svg>
 
-                {/* Safe Target Zone Circle — sized per difficulty, straight
-                    from WaterBowlProject's radarInnerDiaPx (bigger on Easy,
-                    barely-bigger-than-the-dot on Master). */}
+                {/* Safe Target Zone Circle — sized per difficulty */}
                 <div
                   className={`rounded-full border transition-all pointer-events-none ${
                     isCalibrating
                       ? isDotCentered
-                        ? 'border-[#005f9e] bg-[#005f9e]/15 animate-pulse'
+                        ? 'border-[#0078c6] bg-[#0078c6]/15'
                         : 'border-[#cb4830] bg-[#cb4830]/10'
                       : isSpilling
                       ? 'border-[#cb4830]/80 bg-[#cb4830]/15'
@@ -993,10 +1001,16 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
               </div>
             </div>
 
-            {/* Instruction reset tag if lost center */}
-            {isCalibrating && !isDotCentered && (
-              <div className="mt-3 px-3.5 py-1 rounded-full bg-[#cb4830]/90 text-white text-[11px] font-bold shadow-md">
-                Bring dot into center target
+            {/* Instruction guidance tag under the dial */}
+            {isCalibrating && (
+              <div
+                className={`mt-4 px-3.5 py-1 rounded-full text-[11px] font-bold shadow-md transition-all ${
+                  isDotCentered
+                    ? 'bg-[#005f9e]/90 text-white'
+                    : 'bg-[#cb4830]/90 text-white'
+                }`}
+              >
+                {isDotCentered ? 'Steady • Keep centered' : 'Tilt phone to center dot'}
               </div>
             )}
           </div>

@@ -5,6 +5,8 @@ export type GameMode = 'lobby' | 'playing' | 'result';
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type FontSizeOption = 'default' | 'medium' | 'large';
 export type DistanceUnit = 'feet' | 'meters' | 'both';
+export type WalkingSensitivity = 'high' | 'medium' | 'low';
+export type GpsStatus = 'active' | 'searching' | 'unavailable' | 'off';
 
 export interface LeaderboardEntry {
   id: string;
@@ -33,6 +35,8 @@ export interface GameSettings {
   fontSize: FontSizeOption;
   walkingModeEnabled: boolean; // Must walk to play
   distanceUnit: DistanceUnit; // 'feet' | 'meters' | 'both'
+  walkingSensitivity?: WalkingSensitivity; // 'high' (Steady Hands/Mindful) | 'medium' | 'low'
+  gpsEnabled?: boolean;
 }
 
 export interface GameResult {

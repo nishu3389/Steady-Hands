@@ -15,6 +15,8 @@ const DEFAULT_SETTINGS: GameSettings = {
   fontSize: 'default',
   walkingModeEnabled: true,
   distanceUnit: 'both',
+  walkingSensitivity: 'high',
+  gpsEnabled: true,
 };
 
 const DEFAULT_PROFILE: UserProfile = {

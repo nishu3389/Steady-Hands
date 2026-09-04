@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DifficultyLevel, DurationOption, GameResult, GameSettings, UserProfile } from '../types';
-import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Footprints } from 'lucide-react';
+import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Footprints, Activity, Navigation } from 'lucide-react';
 import { ThreeBowlCanvas } from './ThreeBowlCanvas';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
@@ -211,6 +211,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // Walking Status State (user must walk to advance timer)
   const [isWalking, setIsWalking] = useState(true);
   const [walkingSteps, setWalkingSteps] = useState(0);
+  const [walkingState, setWalkingState] = useState(() => walkingDetector.getState());
   const isWalkingRef = useRef(true);
   const walkingStepsRef = useRef(0);
 
@@ -312,13 +313,15 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     const unsubStep = walkingDetector.onStep((state) => {
       setWalkingSteps(state.steps);
       walkingStepsRef.current = state.steps;
+      setWalkingState(state);
       setIsWalking(true);
       isWalkingRef.current = true;
     });
 
-    const unsubState = walkingDetector.onStateChange((walking) => {
+    const unsubState = walkingDetector.onStateChange((walking, state) => {
       setIsWalking(walking);
       isWalkingRef.current = walking;
+      setWalkingState(state);
       if (gamePhaseRef.current === 'playing') {
         if (!walking && settings.soundEnabled) {
           soundService.playWalkingPause();
@@ -386,8 +389,11 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // Start Calibration (Hold for 3s in center)
   const startCalibration = () => {
     requestMotionPermission();
+    walkingDetector.setSensitivity(settings.walkingSensitivity || 'high');
+    walkingDetector.setGpsEnabled(settings.gpsEnabled !== false);
     walkingDetector.reset();
     walkingDetector.start();
+    walkingDetector.startCalibrationRecording();
     setIsWalking(true);
     isWalkingRef.current = true;
     setWalkingSteps(0);
@@ -493,6 +499,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           }
 
           if (nextHold >= CALIB_HOLD_SECONDS) {
+            walkingDetector.finishCalibrationRecording();
+            walkingDetector.armStartupGrace(3400);
             if (settings.soundEnabled) soundService.playCalibrationReady();
             if (settings.vibrationEnabled && 'vibrate' in navigator) {
               navigator.vibrate([40, 60, 40]);
@@ -991,8 +999,20 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                     {isWalking ? 'WALKING' : 'PAUSED'}
                   </span>
                   <span className="text-xs font-extrabold text-[#191c1e] dark:text-[#eff1f4]">
-                    {formatWalkingDistance(walkingSteps, settings.distanceUnit).formatted}
+                    {formatWalkingDistance(walkingSteps, settings.distanceUnit, walkingState.distanceMeters).formatted}
                   </span>
+                  {walkingState.gpsStatus === 'active' && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 flex items-center gap-0.5 shrink-0" title="GPS Fusion Active">
+                      <Navigation className="w-2.5 h-2.5 fill-current" />
+                      <span>GPS</span>
+                    </span>
+                  )}
+                  {isWalking && (
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 flex items-center gap-1 shrink-0" title="Live Motion Energy">
+                      <Activity className="w-2.5 h-2.5" />
+                      <span>{Math.max(12, Math.round(walkingState.motionEnergy * 100))}%</span>
+                    </span>
+                  )}
                 </div>
               </div>
 

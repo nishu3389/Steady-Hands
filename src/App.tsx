@@ -76,11 +76,12 @@ export default function App() {
       setProfile((prev) => ({ ...prev, streak: updatedStreak }));
 
       // Add to leaderboard
+      const targetDuration = result.targetDuration || (result.totalDuration >= 75 ? 90 : result.totalDuration >= 52 ? 60 : 45);
       storageService.addLeaderboardEntry({
         name: profile.name,
         score: result.finalScore,
         difficulty: result.difficulty,
-        duration: result.totalDuration >= 50 ? 60 : result.totalDuration >= 25 ? 30 : 20,
+        duration: targetDuration,
         waterRemaining: result.waterRemaining,
       });
       setLeaderboard(storageService.getLeaderboard());

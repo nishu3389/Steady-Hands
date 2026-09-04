@@ -1,5 +1,5 @@
-export type DifficultyLevel = 'easy' | 'normal' | 'hard' | 'expert' | 'master';
-export type DurationOption = 20 | 30 | 60;
+export type DifficultyLevel = 'easy' | 'medium' | 'hard';
+export type DurationOption = 45 | 60 | 90;
 export type NavigationTab = 'play' | 'instructions' | 'leaderboard' | 'settings';
 export type GameMode = 'lobby' | 'playing' | 'result';
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -39,15 +39,32 @@ export interface GameSettings {
   gpsEnabled?: boolean;
 }
 
+export interface SteadinessBreakdown {
+  stillnessScore: number; // 0 - 100% (fluid calmness and safe zone presence)
+  rhythmScore: number; // 0 - 100% (walking cadence and pace consistency)
+  postureScore: number; // 0 - 100% (micro-tremor and tilt control)
+  timeInSafeZoneSec: number;
+  totalTimeSec: number;
+  safeZoneRatio: number; // 0.0 - 1.0
+  gradeTitle: string; // e.g. "Flow State", "Mindful Balance", "Grounded Focus"
+  gradeIcon: string;
+  feedback: string;
+}
+
 export interface GameResult {
   isWin: boolean;
-  finalScore: number;
+  finalScore: number; // Body Steadiness Index (0 - 100%)
+  steadinessScore: number; // 0 - 100%
+  steadinessBreakdown: SteadinessBreakdown;
   waterRemaining: number; // percentage (0 - 100)
   totalDuration: number;
+  targetDuration?: DurationOption;
   difficulty: DifficultyLevel;
   spilledAmount: number;
   isNewBest: boolean;
   stepsTaken?: number;
   distanceMeters?: number;
   distanceFeet?: number;
+  cadence?: number;
+  streakBonus?: number;
 }

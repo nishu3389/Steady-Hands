@@ -28,32 +28,24 @@ type GamePhase = 'lobby' | 'calibrating' | 'transitioning' | 'playing';
    ============================================================ */
 const DEG2RAD = Math.PI / 180;
 
-// presetPercent equivalents for each difficulty, straight from
-// WaterBowlProject's DIFFICULTY_LEVELS (Easy..Master -> 70..90).
+// presetPercent equivalents for each difficulty, merged into Easy, Medium, Hard
+// Easy (70%), Medium (78% - merging Medium & Hard), Hard (88% - merging Expert & Master).
 const DIFFICULTY_PCT: Record<DifficultyLevel, number> = {
   easy: 70,
-  normal: 75, // "Medium" in WaterBowlProject
-  hard: 80,
-  expert: 85,
-  master: 90,
+  medium: 78,
+  hard: 88,
 };
 
 const SPILL_RATE_BOOST = 1.3; // +30% spill speed once past the safe zone, every difficulty
 const CALIB_HOLD_SECONDS = 3;
 const KEYBOARD_TILT_SPEED = 55; // deg/sec, desktop/keyboard fallback
 
-// Inner "safe zone" circle diameter, straight from WaterBowlProject's own
-// DIFFICULTY_LEVELS.radarInnerDiaPx (44/32/22/15/10 px) — that page's radar
-// dial is a 96px container, exactly matching this app's corner play-state
-// dial (w-24 = 96px), so those values are used as-is there. The larger
-// calibration-view dial (208px) scales the same values up proportionally
-// so the safe zone reads at a consistent relative size in both places.
+// Inner "safe zone" circle diameter for each difficulty:
+// Easy (44px), Medium (28px), Hard (14px).
 const RADAR_INNER_DIA_PX: Record<DifficultyLevel, number> = {
   easy: 44,
-  normal: 32,
-  hard: 22,
-  expert: 15,
-  master: 10,
+  medium: 28,
+  hard: 14,
 };
 const CALIB_DIAL_PX = 208;
 const PLAY_DIAL_PX = 96;
@@ -95,8 +87,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   onQuitGame,
 }) => {
   // Lobby Settings
-  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>('normal');
-  const [selectedDuration, setSelectedDuration] = useState<DurationOption>(30);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>('medium');
+  const [selectedDuration, setSelectedDuration] = useState<DurationOption>(45);
   const [showMindfulTip, setShowMindfulTip] = useState(false);
   const [activeBenefitIndex, setActiveBenefitIndex] = useState(0);
 
@@ -211,6 +203,11 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const bowlTiltZRef = useRef(0);
   const cfgRef = useRef<BowlCfg>(computeCfg(DIFFICULTY_PCT[selectedDifficulty]));
   const keysPressedRef = useRef<Set<string>>(new Set());
+
+  // Mind-Body Steadiness Index tracking refs
+  const safeZoneTimeRef = useRef(0);
+  const totalPlayTimeRef = useRef(0);
+  const tiltSamplesRef = useRef<{ sumTilt: number; count: number }>({ sumTilt: 0, count: 0 });
 
   // Walking Status State (user must walk to advance timer)
   const [isWalking, setIsWalking] = useState(true);
@@ -342,7 +339,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     };
   }, [settings.soundEnabled]);
 
-  // Finish Game Handler
+  // Finish Game Handler: Computes Mind-Body Steadiness Index (0 - 100%)
   const finishGame = useCallback(
     (won: boolean, finalWater: number, durationElapsed: number) => {
       walkingDetector.stop();
@@ -352,39 +349,101 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
         cancelAnimationFrame(animationReqRef.current);
       }
 
-      // Calculate score formula:
-      const mult =
-        selectedDifficulty === 'easy'
-          ? 1.0
-          : selectedDifficulty === 'normal'
-          ? 1.35
-          : selectedDifficulty === 'hard'
-          ? 1.75
-          : selectedDifficulty === 'expert'
-          ? 2.1
-          : 2.5;
+      const totalTime = Math.max(1, durationElapsed);
+      const safeZoneTime = safeZoneTimeRef.current;
+      const safeZoneRatio = clamp(safeZoneTime / totalTime, 0, 1);
+      const safeZonePct = safeZoneRatio * 100;
 
-      const durationFactor = selectedDuration / 30;
-      const baseScore = finalWater * mult * durationFactor;
-      const streakBonus = profile.streak * 2.5;
-      const calculatedScore = Math.max(10, Math.round(baseScore + (won ? streakBonus : 0)));
+      // 1. Stillness Score (fluid composure & safe zone presence)
+      const stillnessScore = Math.round(clamp(0.55 * finalWater + 0.45 * safeZonePct, 0, 100));
+
+      // 2. Rhythm Score (walking cadence & stride smoothness)
+      const walkingState = walkingDetector.getState();
+      const actualCadence =
+        walkingState.currentCadenceStepsPerMin ||
+        (durationElapsed > 5 && walkingState.steps > 0
+          ? (walkingState.steps / (durationElapsed / 60))
+          : 0);
+
+      let rhythmScore = 85;
+      if (walkingState.steps > 0) {
+        // Optimal mindful walking cadence is 38 - 65 steps/min
+        const cadenceDev = Math.abs(actualCadence - 50);
+        rhythmScore = Math.round(clamp(96 - cadenceDev * 0.7, 50, 100));
+      } else {
+        rhythmScore = Math.round(clamp(stillnessScore, 65, 95));
+      }
+
+      // 3. Posture Score (hand calm & micro-tilt control)
+      const avgTilt =
+        tiltSamplesRef.current.count > 0
+          ? tiltSamplesRef.current.sumTilt / tiltSamplesRef.current.count
+          : 0;
+      const spillThresh = cfgRef.current.SPILL_THRESHOLD_DEG || 4;
+      const tiltRatio = clamp(avgTilt / spillThresh, 0, 2);
+      const postureScore = Math.round(clamp(100 - tiltRatio * 35, 45, 100));
+
+      // 4. Overall Body Steadiness Index (0 - 100%)
+      let rawSteadiness = Math.round(
+        0.50 * stillnessScore + 0.30 * rhythmScore + 0.20 * postureScore
+      );
+      if (!won || finalWater <= 0) {
+        rawSteadiness = Math.min(38, Math.round(rawSteadiness * 0.4));
+      }
+      const steadinessScore = Math.min(100, Math.max(5, rawSteadiness));
+
+      // 5. Mind-Body Grade & Feedback
+      let gradeTitle = 'Restless Stride';
+      let gradeIcon = '💧';
+      let feedback = 'Excess physical sway or hurried pace. Slow your steps and center your breath.';
+
+      if (won && steadinessScore >= 95) {
+        gradeTitle = 'Flow State';
+        gradeIcon = '🪷';
+        feedback = 'Pristine mind-body equilibrium. Minimal physical sway and rhythmic, peaceful stride.';
+      } else if (won && steadinessScore >= 85) {
+        gradeTitle = 'Mindful Balance';
+        gradeIcon = '🌊';
+        feedback = 'Strong postural awareness. Smooth stride with minimal involuntary sway.';
+      } else if (won && steadinessScore >= 70) {
+        gradeTitle = 'Grounded Focus';
+        gradeIcon = '🍃';
+        feedback = 'Steady physical balance with deliberate, intentional walking rhythm.';
+      } else if (won && steadinessScore >= 50) {
+        gradeTitle = 'Active Alignment';
+        gradeIcon = '🌾';
+        feedback = 'Moderate tilt variance. Focus on relaxing your shoulders and softening your steps.';
+      }
 
       const currentBest = highScores[selectedDifficulty] || 0;
-      const isNewBest = won && calculatedScore > currentBest;
-
-      const walkingState = walkingDetector.getState();
+      const isNewBest = won && steadinessScore > currentBest;
 
       onGameOver({
         isWin: won,
-        finalScore: calculatedScore,
+        finalScore: steadinessScore,
+        steadinessScore,
+        steadinessBreakdown: {
+          stillnessScore,
+          rhythmScore,
+          postureScore,
+          timeInSafeZoneSec: Math.round(safeZoneTime * 10) / 10,
+          totalTimeSec: Math.round(totalTime * 10) / 10,
+          safeZoneRatio,
+          gradeTitle,
+          gradeIcon,
+          feedback,
+        },
         waterRemaining: finalWater,
         totalDuration: durationElapsed,
+        targetDuration: selectedDuration,
         difficulty: selectedDifficulty,
         spilledAmount: 100 - finalWater,
         isNewBest,
         stepsTaken: walkingState.steps,
         distanceMeters: walkingState.distanceMeters,
         distanceFeet: walkingState.distanceFeet,
+        cadence: Math.round(actualCadence),
+        streakBonus: won ? Math.round(profile.streak * 0.5) : 0,
       });
     },
     [selectedDifficulty, selectedDuration, profile.streak, highScores, onGameOver]
@@ -543,6 +602,9 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             gamePhaseRef.current = 'transitioning';
 
             setTimeout(() => {
+              safeZoneTimeRef.current = 0;
+              totalPlayTimeRef.current = 0;
+              tiltSamplesRef.current = { sumTilt: 0, count: 0 };
               setGamePhase('playing');
               gamePhaseRef.current = 'playing';
             }, 600);
@@ -563,6 +625,13 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       // 5. PLAYING PHASE — spill%/water-drain formula straight from
       // WaterBowlProject's tick(): rate = SPILL_RATE * (spill%/100) * BOOST.
       if (gamePhaseRef.current === 'playing') {
+        totalPlayTimeRef.current += dt;
+        if (spillPercent <= 0) {
+          safeZoneTimeRef.current += dt;
+        }
+        tiltSamplesRef.current.sumTilt += tiltDeg;
+        tiltSamplesRef.current.count += 1;
+
         const isWalkingRequired = settings.walkingModeEnabled !== false;
         const isCurrentlyWalking = isWalkingRef.current;
 
@@ -648,13 +717,11 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const strokeOffset = circleCircumference * (1 - holdFraction);
 
   // Difficulty display label
-  const difficultyDisplay =
-    selectedDifficulty === 'normal'
-      ? 'MEDIUM'
-      : selectedDifficulty.toUpperCase();
+  const difficultyDisplay = selectedDifficulty.toUpperCase();
 
-  // Current Best Score
-  const currentBestScore = highScores[selectedDifficulty] || 142;
+  // Current Best Score (Mind-Body Steadiness %)
+  const currentBestScore =
+    highScores[selectedDifficulty] || (selectedDifficulty === 'easy' ? 94 : selectedDifficulty === 'medium' ? 91 : 88);
 
   // Safe-zone circle size for the current difficulty, in each dial context.
   const innerDiaPlayPx = RADAR_INNER_DIA_PX[selectedDifficulty];
@@ -1079,13 +1146,21 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // ----------------------------------------------------
   return (
     <div className="flex flex-col w-full max-w-sm mx-auto items-center justify-between min-h-[calc(100vh-160px)] px-6 pt-4 pb-[calc(140px+env(safe-area-inset-bottom,0px))] gap-5 select-none">
-      {/* Best Score Card */}
+      {/* Best Steadiness Record Card */}
       <div className="w-full bg-white dark:bg-[#191c1e] rounded-2xl p-4 flex flex-col items-center justify-center card-raised border border-white/60 dark:border-transparent">
-        <span className="text-[12px] font-bold text-[#404751] dark:text-[#c0c7d3] mb-1 tracking-[0.1em] uppercase">
-          {difficultyDisplay} DIFFICULTY BEST
+        <span className="text-[12px] font-bold text-[#404751] dark:text-[#c0c7d3] mb-0.5 tracking-[0.1em] uppercase">
+          {difficultyDisplay} STEADINESS RECORD
         </span>
-        <span className="text-[48px] leading-[56px] font-[800] text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
-          {currentBestScore}
+        <div className="flex items-baseline justify-center gap-1">
+          <span className="text-[46px] leading-[52px] font-[800] text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
+            {Math.round(currentBestScore)}
+          </span>
+          <span className="text-xl font-bold text-[#005f9e] dark:text-[#9dcaff]">
+            %
+          </span>
+        </div>
+        <span className="text-[11px] font-semibold text-[#707882] dark:text-[#a0a8b4] tracking-wide mt-0.5">
+          Body & Posture Stability
         </span>
       </div>
 
@@ -1289,36 +1364,27 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             DIFFICULTY
           </span>
 
-          {/* Large Inset Container for segments — rounded-[28px] rather than
-              rounded-full: a true pill's semicircular end-caps clip/overlap
-              scrolled chips right at the edges, since 6px of outer padding
-              isn't enough clearance for that much curvature. Chips inside
-              stay fully rounded, just the scroll container itself doesn't. */}
-          <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-[28px] p-1.5 neumorphic-inset flex items-center overflow-x-auto snap-x scroll-px-1.5 scroll-smooth hide-scrollbar">
-            <div className="flex items-center gap-2 px-1.5 min-w-max">
-              {[
-                { key: 'easy', label: 'Easy' },
-                { key: 'normal', label: 'Medium' },
-                { key: 'hard', label: 'Hard' },
-                { key: 'expert', label: 'Expert' },
-                { key: 'master', label: 'Master' },
-              ].map(({ key, label }) => {
-                const isActive = selectedDifficulty === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleDifficultySelect(key as DifficultyLevel)}
-                    className={`px-5 py-2.5 rounded-full font-medium text-base snap-center transition-all cursor-pointer ${
-                      isActive
-                        ? 'neumorphic-inset bg-[#ffdea8] dark:bg-[#5e4200] text-[#5e4200] dark:text-[#ffdea8] font-bold'
-                        : 'bg-white dark:bg-[#191c1e] text-[#404751] dark:text-[#c0c7d3] shadow-[0_2px_6px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-none dark:neumorphic-raised hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 neumorphic-inset flex items-center justify-between">
+            {[
+              { key: 'easy', label: 'Easy' },
+              { key: 'medium', label: 'Medium' },
+              { key: 'hard', label: 'Hard' },
+            ].map(({ key, label }) => {
+              const isActive = selectedDifficulty === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleDifficultySelect(key as DifficultyLevel)}
+                  className={`flex-1 py-2.5 rounded-full font-medium text-base transition-all duration-200 cursor-pointer text-center mx-1 relative ${
+                    isActive
+                      ? 'neumorphic-inset bg-[#ffdea8] dark:bg-[#5e4200] text-[#5e4200] dark:text-[#ffdea8] font-bold shadow-inner'
+                      : 'bg-white dark:bg-[#191c1e] text-[#404751] dark:text-[#c0c7d3] shadow-[0_2px_6px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-none dark:neumorphic-raised hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1328,7 +1394,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             DURATION
           </span>
           <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 neumorphic-inset flex items-center justify-between">
-            {([20, 30, 60] as DurationOption[]).map((dur) => {
+            {([45, 60, 90] as DurationOption[]).map((dur) => {
               const isActive = selectedDuration === dur;
               return (
                 <button

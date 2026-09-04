@@ -8,7 +8,7 @@ interface LeaderboardScreenProps {
   soundEnabled: boolean;
 }
 
-type FilterType = 'all' | 'easy' | 'normal' | 'hard';
+type FilterType = 'all' | 'easy' | 'medium' | 'hard';
 
 export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   entries,
@@ -20,8 +20,8 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   const filteredEntries = entries.filter((entry) => {
     if (filter === 'all') return true;
     if (filter === 'easy') return entry.difficulty === 'easy';
-    if (filter === 'normal') return entry.difficulty === 'normal';
-    if (filter === 'hard') return entry.difficulty === 'hard' || entry.difficulty === 'expert' || entry.difficulty === 'master';
+    if (filter === 'medium') return entry.difficulty === 'medium' || (entry.difficulty as string) === 'normal';
+    if (filter === 'hard') return entry.difficulty === 'hard' || (entry.difficulty as string) === 'expert' || (entry.difficulty as string) === 'master';
     return true;
   });
 
@@ -48,11 +48,12 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
     switch (entry.difficulty) {
       case 'easy':
         return <span className="text-[12px] font-bold text-[#707882] dark:text-[#a0a8b4] tracking-[0.08em] uppercase">EASY</span>;
-      case 'normal':
+      case 'medium':
+      case 'normal' as any:
         return <span className="text-[12px] font-bold text-[#005f9e] dark:text-[#9dcaff] tracking-[0.08em] uppercase">MED</span>;
       case 'hard':
-      case 'expert':
-      case 'master':
+      case 'expert' as any:
+      case 'master' as any:
         return <span className="text-[12px] font-bold text-[#7c5800] dark:text-[#f4be57] tracking-[0.08em] uppercase">HARD</span>;
       default:
         return <span className="text-[12px] font-bold text-[#707882] tracking-[0.08em] uppercase">MED</span>;
@@ -66,7 +67,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
         {[
           { id: 'all', label: 'ALL' },
           { id: 'easy', label: 'EASY' },
-          { id: 'normal', label: 'MED' },
+          { id: 'medium', label: 'MED' },
           { id: 'hard', label: 'HARD' },
         ].map((tab) => {
           const isActive = filter === tab.id;
@@ -130,16 +131,24 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                   </div>
                 </div>
 
-                {/* Score */}
-                <div className="flex items-baseline">
-                  <span
-                    className={`text-[28px] font-normal tracking-tight ${
-                      rank === 1
-                        ? 'text-[#005f9e] dark:text-[#9dcaff] font-semibold'
-                        : 'text-[#191c1e] dark:text-[#eff1f4]'
-                    }`}
-                  >
-                    {entry.score.toFixed(1)}
+                {/* Steadiness Score */}
+                <div className="flex flex-col items-end">
+                  <div className="flex items-baseline">
+                    <span
+                      className={`text-[24px] font-extrabold tracking-tight ${
+                        rank === 1
+                          ? 'text-[#005f9e] dark:text-[#9dcaff]'
+                          : 'text-[#191c1e] dark:text-[#eff1f4]'
+                      }`}
+                    >
+                      {entry.score.toFixed(1)}
+                    </span>
+                    <span className="text-xs font-bold text-[#005f9e] dark:text-[#9dcaff] ml-0.5">
+                      %
+                    </span>
+                  </div>
+                  <span className="text-[9px] uppercase font-bold tracking-wider text-[#707882] dark:text-[#8d98a7]">
+                    Steadiness
                   </span>
                 </div>
               </div>

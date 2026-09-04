@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FontSizeOption, GameSettings, ThemeMode, UserProfile } from '../types';
-import { Sun, Moon, Smartphone, Volume2, VolumeX, UserCheck, ShieldCheck, Type } from 'lucide-react';
+import { Sun, Moon, Smartphone, Volume2, VolumeX, UserCheck, ShieldCheck, Type, Footprints } from 'lucide-react';
 import { soundService } from '../services/audio';
 
 interface SettingsScreenProps {
@@ -146,6 +146,77 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               }`}
             />
           </button>
+        </div>
+      </section>
+
+      {/* Walking Status & Mindful Movement Section */}
+      <section className="flex flex-col gap-2">
+        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Walking Status</h2>
+        <div className="p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised flex flex-col gap-4 border border-white/60 dark:border-transparent">
+          {/* Walking Mode Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 text-[#191c1e] dark:text-[#eff1f4]">
+              <Footprints className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
+              <div className="flex flex-col text-left">
+                <span className="font-medium text-base">Require Walking to Play</span>
+                <span className="text-xs text-[#707882] dark:text-[#a0a8b4]">
+                  Pause timer when you stop walking
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                if (settings.soundEnabled) soundService.playClick();
+                onUpdateSettings({
+                  ...settings,
+                  walkingModeEnabled: settings.walkingModeEnabled === false ? true : false,
+                });
+              }}
+              className="relative w-14 h-8 bg-[#e0e3e6] dark:bg-[#050B10] rounded-full transition-colors duration-300 focus:outline-none p-1 neumorphic-inset shrink-0 ml-2 cursor-pointer"
+              aria-label="Toggle Walking Mode"
+            >
+              <div
+                className={`w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${
+                  settings.walkingModeEnabled !== false
+                    ? 'translate-x-6 bg-[#005f9e] dark:bg-[#0078c6]'
+                    : 'translate-x-0 bg-[#707882]'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Distance Unit Selector */}
+          <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+            <div className="flex justify-between text-sm text-[#404751] dark:text-[#c0c7d3]">
+              <span>Distance Display Unit</span>
+              <span className="font-bold text-[#005f9e] dark:text-[#9dcaff]">
+                {settings.distanceUnit === 'feet' ? 'Feet (ft)' : settings.distanceUnit === 'meters' ? 'Meters (m)' : 'Both (ft & m)'}
+              </span>
+            </div>
+            <div className="flex bg-[#e9edf2] dark:bg-[#162B3B] rounded-xl p-1 shadow-inner gap-1">
+              {[
+                { key: 'both' as const, label: 'Both' },
+                { key: 'feet' as const, label: 'Feet' },
+                { key: 'meters' as const, label: 'Meters' },
+              ].map((unit) => (
+                <button
+                  key={unit.key}
+                  onClick={() => {
+                    if (settings.soundEnabled) soundService.playClick();
+                    onUpdateSettings({ ...settings, distanceUnit: unit.key });
+                  }}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    (settings.distanceUnit || 'both') === unit.key
+                      ? 'bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-sm'
+                      : 'text-[#404751] dark:text-[#c0c7d3]'
+                  }`}
+                >
+                  {unit.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { GameResult } from '../types';
-import { Trophy, RefreshCw, BarChart2, AlertCircle } from 'lucide-react';
+import { Trophy, RefreshCw, BarChart2, AlertCircle, Footprints } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS, MindfulBenefit } from '../data/mindfulBenefits';
@@ -112,6 +112,28 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
             {result.totalDuration.toFixed(1)}s
           </span>
         </p>
+
+        {/* Mindful Walking Milestone Card */}
+        {result.stepsTaken !== undefined && result.stepsTaken > 0 && (
+          <div className="w-full py-2.5 px-3.5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-400/15 border border-emerald-500/20 dark:border-emerald-400/25 flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="p-1.5 rounded-xl bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-700 dark:text-emerald-300 shrink-0">
+                <Footprints className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col text-left min-w-0 flex-1">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700 dark:text-emerald-400">
+                  Mindful Walking
+                </span>
+                <span className="text-xs font-extrabold text-[#191c1e] dark:text-[#eff1f4] leading-snug">
+                  {result.stepsTaken} steps • {(result.distanceFeet || result.stepsTaken * 1.8).toFixed(1)} ft ({(result.distanceMeters || result.stepsTaken * 0.55).toFixed(1)} m)
+                </span>
+              </div>
+            </div>
+            <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 dark:bg-emerald-400/20 px-2.5 py-1 rounded-full shrink-0">
+              STEADY
+            </span>
+          </div>
+        )}
 
         {/* Mindful Takeaway Box */}
         <div className="w-full p-3.5 rounded-2xl bg-[#eef4fb] dark:bg-[#122230] border border-[#005f9e]/15 dark:border-[#9dcaff]/20 flex flex-col gap-1.5 text-left">

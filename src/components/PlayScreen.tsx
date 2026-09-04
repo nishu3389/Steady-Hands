@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DifficultyLevel, DurationOption, GameResult, GameSettings, UserProfile } from '../types';
-import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
+import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Footprints } from 'lucide-react';
 import { ThreeBowlCanvas } from './ThreeBowlCanvas';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
+import { walkingDetector, formatWalkingDistance } from '../services/walkingDetector';
 
 interface PlayScreenProps {
   settings: GameSettings;
@@ -120,6 +121,12 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     }
     setShowQuitConfirm(false);
     showQuitConfirmRef.current = false;
+    walkingDetector.stop();
+    walkingDetector.reset();
+    setIsWalking(true);
+    isWalkingRef.current = true;
+    setWalkingSteps(0);
+    walkingStepsRef.current = 0;
     setGamePhase('lobby');
     gamePhaseRef.current = 'lobby';
     setWaterLeft(100);
@@ -201,14 +208,27 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const cfgRef = useRef<BowlCfg>(computeCfg(DIFFICULTY_PCT[selectedDifficulty]));
   const keysPressedRef = useRef<Set<string>>(new Set());
 
+  // Walking Status State (user must walk to advance timer)
+  const [isWalking, setIsWalking] = useState(true);
+  const [walkingSteps, setWalkingSteps] = useState(0);
+  const isWalkingRef = useRef(true);
+  const walkingStepsRef = useRef(0);
+
   // Keep refs in sync
   waterLeftRef.current = waterLeft;
   timeLeftRef.current = timeLeft;
   gamePhaseRef.current = gamePhase;
   holdProgressRef.current = holdProgress;
+  isWalkingRef.current = isWalking;
+  walkingStepsRef.current = walkingSteps;
 
-  // Request Device Orientation Sensor (for iOS/Android mobile)
+  // Request Motion & Orientation Sensor permissions (iOS/Android mobile)
   const requestMotionPermission = async () => {
+    try {
+      await walkingDetector.requestPermission();
+    } catch {
+      // Ignore
+    }
     if (
       typeof DeviceOrientationEvent !== 'undefined' &&
       typeof (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> })
@@ -256,6 +276,11 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' ', 'escape'].includes(e.key.toLowerCase())) {
         e.preventDefault();
       }
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' '].includes(e.key.toLowerCase())) {
+        if (gamePhaseRef.current === 'playing') {
+          walkingDetector.simulateStep();
+        }
+      }
       if (e.key === ' ' && gamePhaseRef.current === 'lobby') {
         startCalibration();
       }
@@ -282,9 +307,38 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Walking motion sensor listener (steps & walking/paused status)
+  useEffect(() => {
+    const unsubStep = walkingDetector.onStep((state) => {
+      setWalkingSteps(state.steps);
+      walkingStepsRef.current = state.steps;
+      setIsWalking(true);
+      isWalkingRef.current = true;
+    });
+
+    const unsubState = walkingDetector.onStateChange((walking) => {
+      setIsWalking(walking);
+      isWalkingRef.current = walking;
+      if (gamePhaseRef.current === 'playing') {
+        if (!walking && settings.soundEnabled) {
+          soundService.playWalkingPause();
+        } else if (walking && settings.soundEnabled) {
+          soundService.playWalkingResume();
+        }
+      }
+    });
+
+    return () => {
+      unsubStep();
+      unsubState();
+      walkingDetector.stop();
+    };
+  }, [settings.soundEnabled]);
+
   // Finish Game Handler
   const finishGame = useCallback(
     (won: boolean, finalWater: number, durationElapsed: number) => {
+      walkingDetector.stop();
       setGamePhase('lobby');
       gamePhaseRef.current = 'lobby';
       if (animationReqRef.current) {
@@ -311,6 +365,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       const currentBest = highScores[selectedDifficulty] || 0;
       const isNewBest = won && calculatedScore > currentBest;
 
+      const walkingState = walkingDetector.getState();
+
       onGameOver({
         isWin: won,
         finalScore: calculatedScore,
@@ -319,6 +375,9 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
         difficulty: selectedDifficulty,
         spilledAmount: 100 - finalWater,
         isNewBest,
+        stepsTaken: walkingState.steps,
+        distanceMeters: walkingState.distanceMeters,
+        distanceFeet: walkingState.distanceFeet,
       });
     },
     [selectedDifficulty, selectedDuration, profile.streak, highScores, onGameOver]
@@ -327,6 +386,12 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // Start Calibration (Hold for 3s in center)
   const startCalibration = () => {
     requestMotionPermission();
+    walkingDetector.reset();
+    walkingDetector.start();
+    setIsWalking(true);
+    isWalkingRef.current = true;
+    setWalkingSteps(0);
+    walkingStepsRef.current = 0;
     if (settings.soundEnabled) soundService.playClick();
     cfgRef.current = computeCfg(DIFFICULTY_PCT[selectedDifficulty]);
     rawBetaRef.current = 0;
@@ -457,14 +522,21 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       // 5. PLAYING PHASE — spill%/water-drain formula straight from
       // WaterBowlProject's tick(): rate = SPILL_RATE * (spill%/100) * BOOST.
       if (gamePhaseRef.current === 'playing') {
-        const newTime = Math.max(0, timeLeftRef.current - dt);
-        timeLeftRef.current = newTime;
-        setTimeLeft(newTime);
+        const isWalkingRequired = settings.walkingModeEnabled !== false;
+        const isCurrentlyWalking = isWalkingRef.current;
 
-        if (newTime <= 0) {
-          const finalWater = waterLeftRef.current;
-          finishGame(finalWater >= 50, finalWater, selectedDuration);
-          return;
+        // Walking Status enforcement: Timer ONLY runs while the user is actively walking!
+        // If the user stops walking, the timer pauses and prompts them to keep moving.
+        if (!isWalkingRequired || isCurrentlyWalking) {
+          const newTime = Math.max(0, timeLeftRef.current - dt);
+          timeLeftRef.current = newTime;
+          setTimeLeft(newTime);
+
+          if (newTime <= 0) {
+            const finalWater = waterLeftRef.current;
+            finishGame(finalWater >= 50, finalWater, selectedDuration);
+            return;
+          }
         }
 
         setIsSpilling(spillPercent > 0);
@@ -497,7 +569,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           }
 
           if (nextWater <= 0) {
-            finishGame(false, 0, selectedDuration - newTime);
+            finishGame(false, 0, selectedDuration - timeLeftRef.current);
             return;
           }
         } else {
@@ -556,9 +628,9 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     const isActuallyPlaying = gamePhase === 'playing';
 
     return (
-      <div className="flex flex-col w-full max-w-sm mx-auto h-[calc(100vh-80px)] min-h-[580px] p-2 relative select-none">
+      <div className="flex flex-col w-full max-w-sm mx-auto h-[calc(100vh-80px)] min-h-[580px] p-2 relative select-none gap-2">
         {/* Main 3D Gameplay Container */}
-        <div className="w-full h-full relative rounded-3xl overflow-hidden bg-[#f7f9fc] dark:bg-[#191c1e] neumorphic-raised border border-white/80 dark:border-white/10 flex flex-col justify-between p-5">
+        <div className="w-full flex-1 min-h-0 relative rounded-3xl overflow-hidden bg-[#f7f9fc] dark:bg-[#191c1e] neumorphic-raised border border-white/80 dark:border-white/10 flex flex-col justify-between p-5">
           {/* 3D Liquid Canvas (Always active and sloshing with user rotation!) */}
           <div className="absolute inset-0 w-full h-full z-0">
             <ThreeBowlCanvas
@@ -591,7 +663,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             {/* Exit / Back button during active game or calibration */}
             <button
               onClick={handleQuitRequest}
-              className="h-10 px-3.5 rounded-xl bg-white/90 dark:bg-[#191c1e]/90 text-[#191c1e] dark:text-[#eff1f4] neumorphic-raised hover:bg-white dark:hover:bg-[#252c34] active:neumorphic-inset flex items-center gap-1.5 text-xs font-bold transition-all border border-white/80 dark:border-white/10 shadow-sm cursor-pointer"
+              className="h-10 px-3.5 rounded-xl bg-white/90 dark:bg-[#191c1e]/90 text-[#191c1e] dark:text-[#eff1f4] neumorphic-raised hover:bg-white dark:hover:bg-[#252c34] active:neumorphic-inset flex items-center gap-1.5 text-xs font-bold transition-all border border-white/80 dark:border-white/10 shadow-sm cursor-pointer shrink-0"
               aria-label="Stop game and go back"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -600,26 +672,26 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
 
             {/* Score / Status indicators */}
             <div
-              className={`flex items-center gap-2 pointer-events-none transition-opacity duration-300 ${
+              className={`flex items-center gap-2 pointer-events-none transition-opacity duration-300 shrink-0 ${
                 isActuallyPlaying ? 'opacity-100' : 'opacity-40'
               }`}
             >
               {/* Water Left Card */}
-              <div className="flex flex-col items-start px-3 py-1.5 rounded-xl bg-[#f7f9fc]/85 dark:bg-[#2d3133]/85 backdrop-blur-md border border-white/80 dark:border-white/10 neumorphic-raised min-w-[90px]">
+              <div className="flex flex-col items-start px-3 py-1.5 rounded-xl bg-[#f7f9fc]/85 dark:bg-[#2d3133]/85 backdrop-blur-md border border-white/80 dark:border-white/10 neumorphic-raised min-w-[78px]">
                 <span className="text-[10px] font-bold text-[#404751] dark:text-[#c0c7d3] tracking-wider uppercase">
                   WATER
                 </span>
-                <span className="text-xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] drop-shadow-[0_2px_4px_rgba(0,95,158,0.2)]">
+                <span className="text-lg sm:text-xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] drop-shadow-[0_2px_4px_rgba(0,95,158,0.2)]">
                   {Math.round(waterLeft)}%
                 </span>
               </div>
 
               {/* Time Card */}
-              <div className="flex flex-col items-end px-3 py-1.5 rounded-xl bg-[#f7f9fc]/85 dark:bg-[#2d3133]/85 backdrop-blur-md border border-white/80 dark:border-white/10 neumorphic-raised min-w-[90px]">
+              <div className="flex flex-col items-end px-3 py-1.5 rounded-xl bg-[#f7f9fc]/85 dark:bg-[#2d3133]/85 backdrop-blur-md border border-white/80 dark:border-white/10 neumorphic-raised min-w-[78px]">
                 <span className="text-[10px] font-bold text-[#404751] dark:text-[#c0c7d3] tracking-wider uppercase">
                   TIME
                 </span>
-                <span className="text-xl font-extrabold text-[#7c5800] dark:text-[#f4be57] drop-shadow-[0_2px_4px_rgba(124,88,0,0.2)]">
+                <span className="text-lg sm:text-xl font-extrabold text-[#7c5800] dark:text-[#f4be57] drop-shadow-[0_2px_4px_rgba(124,88,0,0.2)]">
                   {timeLeft.toFixed(1)}s
                 </span>
               </div>
@@ -835,6 +907,13 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                       {spillWarning}
                     </span>
                   </>
+                ) : !isWalking && settings.walkingModeEnabled !== false ? (
+                  <div className="bg-amber-500/20 dark:bg-amber-400/25 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-amber-500/40 animate-pulse flex items-center gap-1.5">
+                    <Footprints className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-bounce shrink-0" />
+                    <span className="text-xs font-extrabold tracking-wide text-amber-800 dark:text-amber-200 uppercase">
+                      TIMER PAUSED • KEEP WALKING
+                    </span>
+                  </div>
                 ) : (
                   <div className="bg-[#f7f9fc]/90 dark:bg-[#191c1e]/90 backdrop-blur-sm px-3.5 py-1.5 rounded-full neumorphic-raised border border-white/80 dark:border-white/10">
                     <span className="text-xs font-bold tracking-widest text-[#005f9e] dark:text-[#9dcaff] uppercase">
@@ -880,6 +959,64 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             </div>
           )}
         </div>
+
+        {/* DEDICATED WALKING STATUS STRIP: Positioned BELOW the bowl card — never overlaps the bowl */}
+        {settings.walkingModeEnabled !== false && isActuallyPlaying && (
+          <div className="w-full shrink-0 z-30">
+            <div
+              className={`w-full flex items-center justify-between px-3.5 py-2 rounded-2xl backdrop-blur-md border transition-all duration-300 shadow-sm ${
+                isWalking
+                  ? 'bg-white/95 dark:bg-[#191c1e]/95 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 neumorphic-raised'
+                  : 'bg-white/95 dark:bg-[#191c1e]/95 border-amber-500/40 text-amber-800 dark:text-amber-200 neumorphic-raised'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`p-1.5 rounded-xl shrink-0 ${
+                    isWalking
+                      ? 'bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-amber-500/20 dark:bg-amber-400/25 text-amber-600 dark:text-amber-400 animate-bounce'
+                  }`}
+                >
+                  <Footprints className="w-4 h-4" />
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 ${
+                      isWalking
+                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-amber-500/20 text-amber-700 dark:text-amber-300 animate-pulse'
+                    }`}
+                  >
+                    {isWalking ? 'WALKING' : 'PAUSED'}
+                  </span>
+                  <span className="text-xs font-extrabold text-[#191c1e] dark:text-[#eff1f4]">
+                    {formatWalkingDistance(walkingSteps, settings.distanceUnit).formatted}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 pl-2">
+                <span className="text-[11px] font-bold text-[#404751] dark:text-[#c0c7d3]">
+                  {walkingSteps} {walkingSteps === 1 ? 'step' : 'steps'}
+                </span>
+                {!isWalking ? (
+                  <button
+                    type="button"
+                    onClick={() => walkingDetector.simulateStep()}
+                    className="text-[11px] px-2.5 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1"
+                    title="Simulate step or press 'W'"
+                  >
+                    <span>Step</span>
+                    <span className="text-[9px] opacity-80 bg-white/20 px-1 py-0.2 rounded font-mono">W</span>
+                  </button>
+                ) : (
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -896,6 +1033,34 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
         </span>
         <span className="text-[48px] leading-[56px] font-[800] text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
           {currentBestScore}
+        </span>
+      </div>
+
+      {/* Mindful Walking Mode Status Banner */}
+      <div className="w-full p-3.5 rounded-2xl bg-white dark:bg-[#191c1e] card-raised border border-white/60 dark:border-transparent flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="p-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-400/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+            <Footprints className="w-4 h-4" />
+          </div>
+          <div className="flex flex-col text-left min-w-0 flex-1">
+            <span className="text-xs font-bold text-[#191c1e] dark:text-[#eff1f4] leading-snug">
+              {settings.walkingModeEnabled !== false ? 'Walking Required' : 'Walking Status'}
+            </span>
+            <p className="text-[11px] text-[#707882] dark:text-[#a0a8b4] leading-normal mt-0.5">
+              {settings.walkingModeEnabled !== false
+                ? 'Walk steadily to keep the timer running'
+                : 'Seated mode: Timer runs without walking'}
+            </p>
+          </div>
+        </div>
+        <span
+          className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full shrink-0 self-center ${
+            settings.walkingModeEnabled !== false
+              ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25'
+              : 'bg-black/5 dark:bg-white/10 text-[#707882] dark:text-[#a0a8b4]'
+          }`}
+        >
+          {settings.walkingModeEnabled !== false ? 'ACTIVE' : 'OFF'}
         </span>
       </div>
 

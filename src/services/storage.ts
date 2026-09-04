@@ -13,6 +13,8 @@ const DEFAULT_SETTINGS: GameSettings = {
   vibrationEnabled: true,
   sensitivity: 1.0,
   fontSize: 'default',
+  walkingModeEnabled: true,
+  distanceUnit: 'both',
 };
 
 const DEFAULT_PROFILE: UserProfile = {

@@ -4,6 +4,7 @@ export type NavigationTab = 'play' | 'instructions' | 'leaderboard' | 'settings'
 export type GameMode = 'lobby' | 'playing' | 'result';
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type FontSizeOption = 'default' | 'medium' | 'large';
+export type DistanceUnit = 'feet' | 'meters' | 'both';
 
 export interface LeaderboardEntry {
   id: string;
@@ -30,6 +31,8 @@ export interface GameSettings {
   vibrationEnabled: boolean;
   sensitivity: number; // 0.5 to 2.0
   fontSize: FontSizeOption;
+  walkingModeEnabled: boolean; // Must walk to play
+  distanceUnit: DistanceUnit; // 'feet' | 'meters' | 'both'
 }
 
 export interface GameResult {
@@ -40,4 +43,7 @@ export interface GameResult {
   difficulty: DifficultyLevel;
   spilledAmount: number;
   isNewBest: boolean;
+  stepsTaken?: number;
+  distanceMeters?: number;
+  distanceFeet?: number;
 }

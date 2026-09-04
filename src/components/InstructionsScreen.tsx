@@ -28,7 +28,7 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
     {
       num: 3,
       icon: <Footprints className="w-8 h-8 text-[#7c5800] dark:text-[#f4be57]" />,
-      text: 'Walk normally while balancing',
+      text: 'Walk steadily: Timer pauses if you stop',
     },
     {
       num: 4,

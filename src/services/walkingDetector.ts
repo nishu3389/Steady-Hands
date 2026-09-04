@@ -2,10 +2,12 @@
 // Detects gentle bipedal walking motion even when the user is holding the phone
 // flat and steady to balance the water bowl, using:
 // 1. 3D Gravity Vector Tracking & Earth-Axis Vertical Bounce Projection
-// 2. Gyroscopic Pelvic/Torso Sway Cadence
-// 3. Sliding-Window Motion Energy & Variance (SMA)
-// 4. Adaptive Thresholding with Ambient Noise Floor Calibration
-// 5. GPS Geolocation High-Accuracy Velocity & Displacement Fusion
+// 2. Bandpass-Filtered Walking Cadence Isolation (0.7 Hz - 2.8 Hz)
+//    which mathematically filters out 8-12 Hz hand tremor & <0.3 Hz postural sway
+// 3. Peak-to-Valley Oscillatory Step State Machine
+// 4. Personalized Resting Tremor Calibration during the 3-second bowl hold
+// 5. Cadence-Driven Walking State with timeout (~2.0s without steps -> PAUSED)
+// 6. High-Accuracy GPS Geolocation Velocity Fusion
 
 import { DistanceUnit, GpsStatus, WalkingSensitivity } from '../types';
 
@@ -30,40 +32,43 @@ export const STRIDE_LENGTH_FEET = 1.804;
 
 // Threshold presets based on sensitivity
 interface SensitivityConfig {
-  accelVarianceThresh: number;
-  vertPeakThresh: number;
-  gyroRateThresh: number;
-  graceWindowMs: number;
+  stepPeakThresh: number; // Minimum positive bounce peak (m/s^2)
+  stepValleyThresh: number; // Minimum negative bounce dip (m/s^2)
+  stepP2pThresh: number; // Minimum peak-to-valley swing (m/s^2)
+  stepTimeoutMs: number; // Window after last step before declaring PAUSED (ms)
 }
 
 const SENSITIVITY_CONFIGS: Record<WalkingSensitivity, SensitivityConfig> = {
-  // Ultra-sensitive for steady-hands bowl balancing (detects 0.038 m/s^2 micro-bounces)
+  // Steady Hands (Recommended for Balancing):
+  // Tuned for deliberate, slow footsteps (~30-60 steps/min).
+  // Easily exceeds the 0.08 m/s^2 walking bounce while completely ignoring
+  // hand tremors (<0.03 m/s^2 after bandpass filter).
   high: {
-    accelVarianceThresh: 0.012,
-    vertPeakThresh: 0.035,
-    gyroRateThresh: 1.2, // deg/s
-    graceWindowMs: 2800,
+    stepPeakThresh: 0.085,
+    stepValleyThresh: -0.045,
+    stepP2pThresh: 0.13,
+    stepTimeoutMs: 2100,
   },
   // Standard everyday walking
   medium: {
-    accelVarianceThresh: 0.024,
-    vertPeakThresh: 0.075,
-    gyroRateThresh: 2.8,
-    graceWindowMs: 2400,
+    stepPeakThresh: 0.15,
+    stepValleyThresh: -0.08,
+    stepP2pThresh: 0.23,
+    stepTimeoutMs: 1800,
   },
-  // Brisk / active motion
+  // Active / brisk stride
   low: {
-    accelVarianceThresh: 0.045,
-    vertPeakThresh: 0.14,
-    gyroRateThresh: 5.0,
-    graceWindowMs: 2000,
+    stepPeakThresh: 0.24,
+    stepValleyThresh: -0.13,
+    stepP2pThresh: 0.37,
+    stepTimeoutMs: 1500,
   },
 };
 
-// Refractory period: prevents double-counting on a single heel strike (max ~170 steps/min)
+// Refractory period: prevents double-counting on a single heel strike (max ~175 steps/min)
 const MIN_STEP_INTERVAL_MS = 340;
-// Maximum expected interval between deliberate mindful steps (min ~30 steps/min)
-const MAX_STEP_INTERVAL_MS = 2200;
+// Maximum expected interval between consecutive steps
+const MAX_STEP_INTERVAL_MS = 2400;
 
 export class WalkingDetector {
   private isRunning = false;
@@ -80,26 +85,27 @@ export class WalkingDetector {
   private gravZ = 9.80665;
   private isGravityInitialized = false;
 
-  // Rolling motion window for continuous activity energy (variance / SMA)
-  private readonly WINDOW_SIZE = 36; // ~600ms at 60Hz
-  private motionBuffer: number[] = [];
-  private bufferIndex = 0;
-  private currentMotionEnergy = 0;
-  private currentRawMag = 0;
+  // Digital Bandpass Filter State (0.7 Hz to 2.8 Hz cadence isolation)
+  // Isolates vertical bipedal footfalls while rejecting 8-12 Hz physiological hand tremor
+  private lastVertBounce = 0;
+  private vertHp = 0; // High-pass: DC & slow posture tilt rejection (<0.6 Hz)
+  private vertBp = 0; // Low-pass: Tremor rejection (>2.8 Hz)
+  private vertSmoothed = 0; // Secondary smoothing for clean zero-crossings
 
-  // Step state machine
+  // Step detection state machine
   private isStepArmed = false;
   private stepPeakValue = 0;
-  private bandpassVertVal = 0;
+  private currentMotionEnergy = 0;
+  private currentFilteredMag = 0;
 
-  // Ambient calibration / noise floor
+  // Personalized resting tremor noise floor (recorded during 3s calibration)
   private isCalibratingNoise = false;
-  private noiseSamples: number[] = [];
-  private calibratedNoiseFloor = 0.008;
+  private restingTremorSamples: number[] = [];
+  private calibratedRestingPeak = 0.02;
 
-  // Grace timer & state continuity
-  private graceTimer: ReturnType<typeof setTimeout> | null = null;
-  private lastActiveMotionTime = 0;
+  // Cadence walking timeout timer
+  private walkingTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastActiveWalkingTime = 0;
 
   // GPS State
   private gpsWatchId: number | null = null;
@@ -142,20 +148,29 @@ export class WalkingDetector {
 
   /**
    * Called when transitioning from calibration to active play.
-   * Grants a startup grace window so the player isn't immediately greeted with "PAUSED"
-   * before taking their first deliberate step.
+   * Grants a startup grace window (~2.6s) so the player can take their first
+   * deliberate step without being immediately paused.
    */
-  public armStartupGrace(startupGraceMs = 3000): void {
+  public armStartupGrace(startupGraceMs = 2600): void {
     this.setWalkingState(true, 'sensor');
-    this.lastActiveMotionTime = performance.now();
+    this.lastActiveWalkingTime = performance.now();
 
-    if (this.graceTimer) {
-      clearTimeout(this.graceTimer);
+    if (this.walkingTimeoutTimer) {
+      clearTimeout(this.walkingTimeoutTimer);
     }
-    this.graceTimer = setTimeout(() => {
-      // If no motion or steps were taken during startup grace, pause
-      const timeSinceMotion = performance.now() - this.lastActiveMotionTime;
-      if (timeSinceMotion >= startupGraceMs) {
+    this.walkingTimeoutTimer = setTimeout(() => {
+      // If no steps were taken during startup grace, pause the game
+      const now = performance.now();
+      const elapsedSinceStep = now - this.lastStepTimestamp;
+      const elapsedSinceArm = now - this.lastActiveWalkingTime;
+
+      // Check if outdoor GPS shows active movement
+      if (this.gpsSpeedMps >= 0.4) {
+        this.armStartupGrace(1500);
+        return;
+      }
+
+      if (this.lastStepTimestamp === 0 || elapsedSinceStep >= startupGraceMs || elapsedSinceArm >= startupGraceMs) {
         this.setWalkingState(false, 'sensor');
       }
     }, startupGraceMs);
@@ -163,24 +178,27 @@ export class WalkingDetector {
 
   /**
    * Begin recording baseline stationary noise floor during the 3-second bowl calibration
+   * while the user holds the phone steady in their palms.
    */
   public startCalibrationRecording(): void {
     this.isCalibratingNoise = true;
-    this.noiseSamples = [];
+    this.restingTremorSamples = [];
   }
 
   /**
-   * Finalize calibration noise floor
+   * Finalize calibration noise floor based on user's actual resting hand tremor
    */
   public finishCalibrationRecording(): void {
     this.isCalibratingNoise = false;
-    if (this.noiseSamples.length > 10) {
-      const sum = this.noiseSamples.reduce((a, b) => a + b, 0);
-      const avg = sum / this.noiseSamples.length;
-      // Clamped to a sane physiological resting range (0.005 to 0.025 m/s^2)
-      this.calibratedNoiseFloor = Math.max(0.005, Math.min(0.025, avg * 1.15));
+    if (this.restingTremorSamples.length > 20) {
+      // Sort to discard brief outliers
+      const sorted = [...this.restingTremorSamples].sort((a, b) => a - b);
+      const p95Index = Math.floor(sorted.length * 0.95);
+      const p95Val = sorted[p95Index];
+      // Clamped to realistic resting hand tremor range (0.015 to 0.07 m/s^2)
+      this.calibratedRestingPeak = Math.max(0.015, Math.min(0.07, p95Val));
     }
-    this.noiseSamples = [];
+    this.restingTremorSamples = [];
   }
 
   public async requestPermission(): Promise<boolean> {
@@ -200,7 +218,6 @@ export class WalkingDetector {
       }
     }
 
-    // Attempt geolocation permission check/prompt if enabled
     if (this.gpsEnabled && typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       try {
         navigator.geolocation.getCurrentPosition(
@@ -213,7 +230,7 @@ export class WalkingDetector {
           { enableHighAccuracy: true, timeout: 3000, maximumAge: 10000 }
         );
       } catch {
-        // Ignore geolocation failure in sandbox
+        // Ignore in sandbox
       }
     }
 
@@ -224,13 +241,14 @@ export class WalkingDetector {
     if (this.isRunning) return;
     this.isRunning = true;
     this.isGravityInitialized = false;
-    this.motionBuffer = new Array(this.WINDOW_SIZE).fill(0);
-    this.bufferIndex = 0;
-    this.currentMotionEnergy = 0;
-    this.currentRawMag = 0;
+    this.lastVertBounce = 0;
+    this.vertHp = 0;
+    this.vertBp = 0;
+    this.vertSmoothed = 0;
     this.isStepArmed = false;
     this.stepPeakValue = 0;
-    this.bandpassVertVal = 0;
+    this.currentMotionEnergy = 0;
+    this.currentFilteredMag = 0;
     this.lastSensorSampleTime = performance.now();
 
     if (typeof window !== 'undefined') {
@@ -256,9 +274,9 @@ export class WalkingDetector {
       window.removeEventListener('devicemotion', this.handleDeviceMotion);
     }
     this.stopGps();
-    if (this.graceTimer) {
-      clearTimeout(this.graceTimer);
-      this.graceTimer = null;
+    if (this.walkingTimeoutTimer) {
+      clearTimeout(this.walkingTimeoutTimer);
+      this.walkingTimeoutTimer = null;
     }
     if (this.sensorCheckInterval) {
       clearInterval(this.sensorCheckInterval);
@@ -278,10 +296,10 @@ export class WalkingDetector {
     this.isStepArmed = false;
     this.stepPeakValue = 0;
     this.currentMotionEnergy = 0;
-    this.currentRawMag = 0;
-    if (this.graceTimer) {
-      clearTimeout(this.graceTimer);
-      this.graceTimer = null;
+    this.currentFilteredMag = 0;
+    if (this.walkingTimeoutTimer) {
+      clearTimeout(this.walkingTimeoutTimer);
+      this.walkingTimeoutTimer = null;
     }
   }
 
@@ -300,7 +318,6 @@ export class WalkingDetector {
   }
 
   public getState(): WalkingState {
-    // Determine distance: use step distance, or GPS if higher and validated
     const stepMeters = this.steps * STRIDE_LENGTH_METERS;
     const finalMeters = Math.max(stepMeters, this.accumulatedGpsDistanceMeters);
     const finalFeet = finalMeters * (STRIDE_LENGTH_FEET / STRIDE_LENGTH_METERS);
@@ -322,12 +339,12 @@ export class WalkingDetector {
       distanceMeters: Math.round(finalMeters * 10) / 10,
       distanceFeet: Math.round(finalFeet * 10) / 10,
       currentCadenceStepsPerMin: cadence,
-      motionEnergy: Math.min(1.0, Math.round(this.currentMotionEnergy * 100) / 100),
-      lastMotionMagnitude: Math.round(this.currentRawMag * 1000) / 1000,
+      motionEnergy: this.isWalking ? Math.min(1.0, Math.round(this.currentMotionEnergy * 100) / 100) : 0,
+      lastMotionMagnitude: Math.round(this.currentFilteredMag * 1000) / 1000,
       gpsStatus: this.gpsStatus,
       gpsSpeedMps: Math.round(this.gpsSpeedMps * 10) / 10,
       sensorActive: this.sensorActive,
-      source: this.gpsSpeedMps >= 0.25 ? 'fusion' : 'sensor',
+      source: this.gpsSpeedMps >= 0.35 ? 'fusion' : 'sensor',
     };
   }
 
@@ -339,7 +356,7 @@ export class WalkingDetector {
   }
 
   // --------------------------------------------------------------------------
-  // CORE SENSING & FUSION LOGIC
+  // CORE SENSING & BANDPASS FILTER PIPELINE
   // --------------------------------------------------------------------------
 
   private handleDeviceMotion(e: DeviceMotionEvent): void {
@@ -376,16 +393,14 @@ export class WalkingDetector {
       return;
     }
 
-    // 2. DYNAMIC 3D GRAVITY VECTOR TRACKING (Low-pass filter)
+    // 2. DYNAMIC 3D GRAVITY VECTOR TRACKING (Low-pass filter at ~0.6 Hz)
     if (!this.isGravityInitialized) {
       this.gravX = rawAx;
       this.gravY = rawAy;
       this.gravZ = rawAz;
       this.isGravityInitialized = true;
     } else {
-      // Time constant ~0.6s: adapts to slow phone orientation changes while
-      // preserving dynamic body oscillations
-      const alpha = 0.93;
+      const alpha = 0.92;
       this.gravX = this.gravX * alpha + rawAx * (1 - alpha);
       this.gravY = this.gravY * alpha + rawAy * (1 - alpha);
       this.gravZ = this.gravZ * alpha + rawAz * (1 - alpha);
@@ -396,107 +411,77 @@ export class WalkingDetector {
     const gUnitY = this.gravY / gravMagnitude;
     const gUnitZ = this.gravZ / gravMagnitude;
 
-    // 3. DYNAMIC BODY ACCELERATION (High-pass filter: vector minus gravity)
+    // 3. DYNAMIC BODY ACCELERATION (Vector minus Gravity)
     const dynX = rawAx - this.gravX;
     const dynY = rawAy - this.gravY;
     const dynZ = rawAz - this.gravZ;
 
-    // 4. VERTICAL BOUNCE PROJECTION (Earth-relative vertical axis)
-    // This is the fundamental, inescapable signature of bipedal walking:
-    // With every step, the center of mass bobs up and down ~2-4 cm!
+    // 4. EARTH-RELATIVE VERTICAL BOUNCE PROJECTION
+    // The physical center of mass vertical oscillation of bipedal walking
     const vertBounce = dynX * gUnitX + dynY * gUnitY + dynZ * gUnitZ;
 
-    // Horizontal sway
-    const horizX = dynX - vertBounce * gUnitX;
-    const horizY = dynY - vertBounce * gUnitY;
-    const horizZ = dynZ - vertBounce * gUnitZ;
-    const horizMag = Math.hypot(horizX, horizY, horizZ);
+    // 5. DIGITAL BANDPASS FILTER (0.7 Hz to 2.8 Hz)
+    // Stage A: High-Pass (DC & slow tilt removal < 0.6 Hz)
+    const hpAlpha = 0.94;
+    this.vertHp = hpAlpha * (this.vertHp + vertBounce - this.lastVertBounce);
+    this.lastVertBounce = vertBounce;
 
-    // 5. GYROSCOPIC TORSO/PELVIC SWAY
-    let gyroRateDegPerSec = 0;
-    if (e.rotationRate && e.rotationRate.alpha !== null) {
-      const ra = e.rotationRate.alpha || 0;
-      const rb = e.rotationRate.beta || 0;
-      const rg = e.rotationRate.gamma || 0;
-      gyroRateDegPerSec = Math.hypot(ra, rb, rg);
-    }
+    // Stage B: Low-Pass (Physiological tremor removal > 2.8 Hz)
+    const lpAlpha = 0.72;
+    this.vertBp = lpAlpha * this.vertBp + (1 - lpAlpha) * this.vertHp;
 
-    // 6. MULTI-AXIS COMBINED SAMPLE
-    // Weighted combination of earth-vertical bounce, horizontal sway, and torso rotation
-    const instantSample =
-      Math.abs(vertBounce) * 1.5 + horizMag * 0.6 + (gyroRateDegPerSec * 0.012);
-    this.currentRawMag = instantSample;
+    // Stage C: Second-pole smoothing for clean zero-crossing and peak detection
+    this.vertSmoothed = 0.65 * this.vertSmoothed + 0.35 * this.vertBp;
+    const sVert = this.vertSmoothed;
+    this.currentFilteredMag = Math.abs(sVert);
 
-    // Record noise samples if in calibration
+    // Record noise samples during bowl calibration
     if (this.isCalibratingNoise) {
-      this.noiseSamples.push(instantSample);
-      if (this.noiseSamples.length > 180) this.noiseSamples.shift();
+      this.restingTremorSamples.push(Math.abs(sVert));
+      if (this.restingTremorSamples.length > 200) this.restingTremorSamples.shift();
       return;
     }
 
-    // 7. SLIDING-WINDOW MOTION ENERGY & VARIANCE (Continuous Walking Signature)
-    this.motionBuffer[this.bufferIndex] = instantSample;
-    this.bufferIndex = (this.bufferIndex + 1) % this.WINDOW_SIZE;
-
-    // Compute rolling mean and variance across the buffer
-    let sum = 0;
-    for (let i = 0; i < this.WINDOW_SIZE; i++) {
-      sum += this.motionBuffer[i];
-    }
-    const mean = sum / this.WINDOW_SIZE;
-
-    let varianceSum = 0;
-    for (let i = 0; i < this.WINDOW_SIZE; i++) {
-      const diff = this.motionBuffer[i] - mean;
-      varianceSum += diff * diff;
-    }
-    const rollingVariance = Math.sqrt(varianceSum / this.WINDOW_SIZE);
-
-    // Normalized motion energy (0.0 to 1.0)
-    this.currentMotionEnergy = Math.min(1.0, rollingVariance * 8.0 + mean * 2.0);
-
-    // 8. CONTINUOUS MOTION CHECK AGAINST ADAPTIVE SENSITIVITY THRESHOLDS
+    // 6. ADAPTIVE SENSITIVITY THRESHOLDS
     const config = SENSITIVITY_CONFIGS[this.sensitivity] || SENSITIVITY_CONFIGS.high;
-    const effectiveVarianceThresh = Math.max(
-      config.accelVarianceThresh,
-      this.calibratedNoiseFloor * 1.25
+    // Guaranteed to be strictly above the user's calibrated resting hand tremor
+    const effectivePeakThresh = Math.max(config.stepPeakThresh, this.calibratedRestingPeak * 1.55);
+    const effectiveValleyThresh = -Math.max(
+      Math.abs(config.stepValleyThresh),
+      this.calibratedRestingPeak * 0.9
     );
+    const effectiveP2pThresh = Math.max(config.stepP2pThresh, this.calibratedRestingPeak * 2.2);
 
-    const hasSustainedWalkingMotion =
-      rollingVariance >= effectiveVarianceThresh ||
-      gyroRateDegPerSec >= config.gyroRateThresh;
+    // Update motion energy indicator (normalized 0.0 to 1.0)
+    const normalizedEnergy = Math.min(1.0, Math.abs(sVert) / (effectivePeakThresh * 2.0));
+    this.currentMotionEnergy = 0.8 * this.currentMotionEnergy + 0.2 * normalizedEnergy;
 
-    if (hasSustainedWalkingMotion) {
-      this.lastActiveMotionTime = now;
-      if (!this.isWalking) {
-        this.setWalkingState(true, 'sensor');
-      }
-      this.resetGraceTimer(config.graceWindowMs);
-    }
-
-    // 9. STEP CADENCE & WAVEFORM DETECTION
-    // Gentle bandpass filter on vertical bounce
-    this.bandpassVertVal = this.bandpassVertVal * 0.65 + vertBounce * 0.35;
-    const vertVal = this.bandpassVertVal;
-    const effectivePeakThresh = config.vertPeakThresh;
-
+    // 7. PEAK & VALLEY STEP STATE MACHINE
+    // A genuine bipedal step consists of a positive vertical rise (peak)
+    // followed by a zero-crossing into a negative trough (valley)
     if (!this.isStepArmed) {
-      if (vertVal > effectivePeakThresh) {
+      if (sVert >= effectivePeakThresh) {
         this.isStepArmed = true;
-        this.stepPeakValue = vertVal;
+        this.stepPeakValue = sVert;
       }
     } else {
-      if (vertVal > this.stepPeakValue) {
-        this.stepPeakValue = vertVal;
-      } else if (vertVal < -effectivePeakThresh * 0.4) {
-        // Zero-crossing & valley confirmed -> step completed!
+      if (sVert > this.stepPeakValue) {
+        this.stepPeakValue = sVert;
+      } else if (sVert <= effectiveValleyThresh) {
+        // Zero-crossing into valley confirmed! Check peak-to-peak amplitude
+        const p2p = this.stepPeakValue - sVert;
         const timeSinceLastStep = now - this.lastStepTimestamp;
-        if (timeSinceLastStep >= MIN_STEP_INTERVAL_MS && timeSinceLastStep <= MAX_STEP_INTERVAL_MS) {
-          this.recordStep(now, 'sensor');
-        } else if (timeSinceLastStep > MAX_STEP_INTERVAL_MS) {
-          // First step after a rest
-          this.recordStep(now, 'sensor');
+
+        if (p2p >= effectiveP2pThresh) {
+          if (timeSinceLastStep >= MIN_STEP_INTERVAL_MS && timeSinceLastStep <= MAX_STEP_INTERVAL_MS) {
+            this.recordStep(now, 'sensor');
+          } else if (timeSinceLastStep > MAX_STEP_INTERVAL_MS) {
+            // First step after a rest or pause
+            this.recordStep(now, 'sensor');
+          }
         }
+
+        // Reset step state machine
         this.isStepArmed = false;
         this.stepPeakValue = 0;
       }
@@ -543,25 +528,24 @@ export class WalkingDetector {
     const now = performance.now();
     const coords = position.coords;
 
-    // Check instantaneous speed if provided by GPS chip
+    // Check GPS speed (walking speed: >= 0.35 m/s or ~1.3 km/h, accuracy <= 20m)
     if (typeof coords.speed === 'number' && coords.speed !== null && !isNaN(coords.speed)) {
       this.gpsSpeedMps = coords.speed;
-      // Walking speed: >= 0.25 m/s (~0.9 km/h)
-      if (coords.speed >= 0.25) {
-        this.lastActiveMotionTime = now;
+      if (coords.speed >= 0.35 && coords.accuracy <= 20) {
+        this.lastActiveWalkingTime = now;
         if (!this.isWalking) {
           this.setWalkingState(true, 'gps');
         }
         const config = SENSITIVITY_CONFIGS[this.sensitivity] || SENSITIVITY_CONFIGS.high;
-        this.resetGraceTimer(config.graceWindowMs + 400);
+        this.resetWalkingTimeout(config.stepTimeoutMs + 400);
       }
     }
 
-    // Check displacement if accuracy is decent (< 25 meters)
-    if (coords.accuracy <= 25) {
+    // Displacement check
+    if (coords.accuracy <= 20) {
       if (this.lastGpsLat !== null && this.lastGpsLon !== null && this.lastGpsTimestamp > 0) {
         const dtSec = (now - this.lastGpsTimestamp) / 1000;
-        if (dtSec >= 1.2 && dtSec <= 8.0) {
+        if (dtSec >= 1.5 && dtSec <= 8.0) {
           const distMeters = this.calculateHaversineDistance(
             this.lastGpsLat,
             this.lastGpsLon,
@@ -569,16 +553,15 @@ export class WalkingDetector {
             coords.longitude
           );
 
-          // Realistic walking speed: 0.3 m/s to 3.0 m/s
           const speedDerived = distMeters / dtSec;
-          if (distMeters >= 1.2 && speedDerived >= 0.25 && speedDerived <= 3.5) {
+          if (distMeters >= 1.5 && speedDerived >= 0.35 && speedDerived <= 3.2) {
             this.accumulatedGpsDistanceMeters += distMeters;
-            this.lastActiveMotionTime = now;
+            this.lastActiveWalkingTime = now;
             if (!this.isWalking) {
               this.setWalkingState(true, 'gps');
             }
             const config = SENSITIVITY_CONFIGS[this.sensitivity] || SENSITIVITY_CONFIGS.high;
-            this.resetGraceTimer(config.graceWindowMs + 400);
+            this.resetWalkingTimeout(config.stepTimeoutMs + 400);
           }
         }
       }
@@ -590,8 +573,6 @@ export class WalkingDetector {
   }
 
   private handleGpsError(err: GeolocationPositionError): void {
-    // In many indoor environments or if permission denied, GPS will fail.
-    // The app falls back 100% smoothly to high-sensitivity IMU sensor fusion.
     if (err.code === err.PERMISSION_DENIED) {
       this.gpsStatus = 'off';
     } else {
@@ -619,28 +600,29 @@ export class WalkingDetector {
   }
 
   // --------------------------------------------------------------------------
-  // STEP RECORDING & STATE CONTINUITY
+  // STEP RECORDING & CADENCE CONTINUITY
   // --------------------------------------------------------------------------
 
   private recordStep(now: number, source: 'sensor' | 'gps' | 'simulated'): void {
     this.steps += 1;
     this.lastStepTimestamp = now;
-    this.lastActiveMotionTime = now;
+    this.lastActiveWalkingTime = now;
     this.recentStepTimes.push(now);
     if (this.recentStepTimes.length > 20) {
       this.recentStepTimes.shift();
     }
 
-    // Transition to walking if paused
+    // Immediate transition to WALKING when a step is taken
     if (!this.isWalking) {
       this.setWalkingState(true, source);
     }
 
-    // Refresh grace timer
+    // Schedule / refresh the walking cadence timeout
+    // If no step is taken within stepTimeoutMs, the state will transition to PAUSED
     const config = SENSITIVITY_CONFIGS[this.sensitivity] || SENSITIVITY_CONFIGS.high;
-    this.resetGraceTimer(config.graceWindowMs);
+    this.resetWalkingTimeout(config.stepTimeoutMs);
 
-    // Notify step listeners
+    // Notify listeners
     const state = this.getState();
     this.stepListeners.forEach((cb) => {
       try {
@@ -651,18 +633,21 @@ export class WalkingDetector {
     });
   }
 
-  private resetGraceTimer(graceMs: number): void {
-    if (this.graceTimer) {
-      clearTimeout(this.graceTimer);
+  private resetWalkingTimeout(timeoutMs: number): void {
+    if (this.walkingTimeoutTimer) {
+      clearTimeout(this.walkingTimeoutTimer);
     }
 
-    this.graceTimer = setTimeout(() => {
-      const now = performance.now();
-      const elapsed = now - this.lastActiveMotionTime;
-      if (elapsed >= graceMs) {
-        this.setWalkingState(false, 'sensor');
+    this.walkingTimeoutTimer = setTimeout(() => {
+      // If GPS is currently moving >= 0.35 m/s outdoors, extend timeout
+      if (this.gpsSpeedMps >= 0.35) {
+        this.resetWalkingTimeout(1200);
+        return;
       }
-    }, graceMs);
+
+      // No step was taken within timeout -> user has stopped / is standing still!
+      this.setWalkingState(false, 'sensor');
+    }, timeoutMs);
   }
 
   private setWalkingState(

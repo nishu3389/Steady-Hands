@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { DifficultyLevel, DurationOption, GameResult, GameSettings, UserProfile } from '../types';
-import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Footprints, Activity, Navigation } from 'lucide-react';
+import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Footprints, Activity, Navigation, MapPin } from 'lucide-react';
 import { ThreeBowlCanvas } from './ThreeBowlCanvas';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
 import { walkingDetector, formatWalkingDistance } from '../services/walkingDetector';
+import { LocationResolver } from '../services/locationResolver';
 
 interface PlayScreenProps {
   settings: GameSettings;
@@ -109,6 +111,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     }, 6000);
     return () => clearInterval(interval);
   }, [showMindfulTip, gamePhase]);
+  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
+  const [locationDenied, setLocationDenied] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const showQuitConfirmRef = useRef(false);
   showQuitConfirmRef.current = showQuitConfirm;
@@ -386,8 +390,10 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     [selectedDifficulty, selectedDuration, profile.streak, highScores, onGameOver]
   );
 
-  // Start Calibration (Hold for 3s in center)
-  const startCalibration = () => {
+  // Start Calibration (Hold for 3s in center) -- only reached once GPS
+  // permission is granted and location services are actually turned on,
+  // via startCalibration below.
+  const beginRound = () => {
     requestMotionPermission();
     walkingDetector.setSensitivity(settings.walkingSensitivity || 'high');
     walkingDetector.setGpsEnabled(settings.gpsEnabled !== false);
@@ -415,6 +421,33 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     lastTickSecRef.current = 4;
     setGamePhase('calibrating');
     gamePhaseRef.current = 'calibrating';
+  };
+
+  // Gate for the lobby's START button: mindful walking mode needs GPS to
+  // fuse step detection with real displacement, so a round can't begin
+  // until location permission is granted AND the device's GPS is actually
+  // on -- surfacing Android's native one-tap "Turn on GPS" dialog when it
+  // isn't, rather than dropping the player straight into calibration.
+  const startCalibration = async () => {
+    if (settings.gpsEnabled === false || !Capacitor.isNativePlatform()) {
+      beginRound();
+      return;
+    }
+
+    setLocationDenied(false);
+    setIsResolvingLocation(true);
+    try {
+      const result = await LocationResolver.ensureLocationReady();
+      setIsResolvingLocation(false);
+      if (result.granted && result.gpsEnabled) {
+        beginRound();
+      } else {
+        setLocationDenied(true);
+      }
+    } catch {
+      setIsResolvingLocation(false);
+      setLocationDenied(true);
+    }
   };
 
   // Main Loop: handles calibration 3s countdown & main physics — this is
@@ -1314,6 +1347,53 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           </div>
         </div>
       </div>
+
+      {/* LOCATION REQUIRED DIALOG -- shown when the player denied location
+          permission or dismissed the native "Turn on GPS" prompt without
+          enabling it, blocking round start. */}
+      {locationDenied && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-xs sm:max-w-sm rounded-3xl bg-[#f7f9fc] dark:bg-[#1e2328] border border-white/90 dark:border-white/10 p-6 flex flex-col items-center text-center shadow-[0_20px_50px_rgba(0,0,0,0.5)] neumorphic-raised">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 dark:bg-amber-400/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 shadow-inner">
+              <MapPin className="w-7 h-7" />
+            </div>
+
+            <h3 className="text-xl font-extrabold text-[#191c1e] dark:text-[#eff1f4]">
+              Location Required
+            </h3>
+
+            <p className="text-sm text-[#5a626f] dark:text-[#a0a8b4] mt-2 mb-6 leading-relaxed">
+              Mindful Walking Mode needs location permission and GPS turned on to track your steps. Enable both to start the round.
+            </p>
+
+            <div className="flex flex-col w-full gap-2.5">
+              <button
+                onClick={() => {
+                  setLocationDenied(false);
+                  startCalibration();
+                }}
+                className="w-full py-3 rounded-2xl bg-[#005f9e] dark:bg-[#9dcaff] text-white dark:text-[#003258] font-extrabold text-sm uppercase tracking-wide cursor-pointer transition-transform active:scale-95"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => setLocationDenied(false)}
+                className="w-full py-3 rounded-2xl bg-transparent text-[#5a626f] dark:text-[#a0a8b4] font-bold text-sm cursor-pointer transition-transform active:scale-95"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightweight spinner overlay while the native GPS/permission check
+          (and, if needed, the "Turn on GPS" dialog) is in flight. */}
+      {isResolvingLocation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="w-14 h-14 rounded-full border-4 border-white/30 border-t-white animate-spin" />
+        </div>
+      )}
     </div>
   );
 };

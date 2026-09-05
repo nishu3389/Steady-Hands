@@ -728,7 +728,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const circleCircumference = 2 * Math.PI * 92; // for 200px container (r=92)
   const strokeOffset = circleCircumference * (1 - holdFraction);
 
-  // Difficulty display label
+  // Difficulty display label for lobby
   const difficultyDisplay = selectedDifficulty.toUpperCase();
 
   // Current Best Score (Mind-Body Steadiness %)
@@ -748,9 +748,9 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     const isActuallyPlaying = gamePhase === 'playing';
 
     return (
-      <div className="flex flex-col w-full max-w-sm mx-auto h-[calc(100vh-80px)] min-h-[580px] p-2 relative select-none gap-2">
+      <div className="flex flex-col w-full max-w-sm mx-auto h-[calc(100vh-80px)] min-h-[580px] p-2 pt-3 sm:pt-4 relative select-none gap-2">
         {/* Main 3D Gameplay Container */}
-        <div className="w-full flex-1 min-h-0 relative rounded-3xl overflow-hidden bg-[#f7f9fc] dark:bg-[#191c1e] neumorphic-raised border border-white/80 dark:border-white/10 flex flex-col justify-between p-5">
+        <div className="w-full flex-1 min-h-0 relative rounded-3xl overflow-hidden bg-[#f7f9fc] dark:bg-[#191c1e] neumorphic-raised border border-white/80 dark:border-white/10 flex flex-col justify-between p-4 sm:p-5">
           {/* 3D Liquid Canvas (Always active and sloshing with user rotation!) */}
           <div className="absolute inset-0 w-full h-full z-0">
             <ThreeBowlCanvas
@@ -778,71 +778,121 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             }`}
           />
 
-          {/* TOP HUD: BACK BUTTON + WATER LEFT & TIME */}
-          <div className="relative z-30 flex items-center justify-between gap-2">
-            {/* Exit / Back button during active game or calibration */}
+          {/* TOP ERGONOMIC HUD: EXIT BUTTON + CENTERED UNIFIED MINDFUL HUD CAPSULE */}
+          <div className="relative z-30 flex items-center justify-between gap-1.5 sm:gap-2 w-full pt-0.5">
+            {/* Exit / Back button: Safe ergonomic thumb target */}
             <button
               onClick={handleQuitRequest}
-              className="h-10 px-3.5 rounded-xl bg-white/90 dark:bg-[#191c1e]/90 text-[#191c1e] dark:text-[#eff1f4] neumorphic-raised hover:bg-white dark:hover:bg-[#252c34] active:neumorphic-inset flex items-center gap-1.5 text-xs font-bold transition-all border border-white/80 dark:border-white/10 shadow-sm cursor-pointer shrink-0"
+              className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl bg-white/90 dark:bg-[#1e2328]/90 text-[#191c1e] dark:text-[#eff1f4] neumorphic-raised hover:bg-white dark:hover:bg-[#252c34] active:neumorphic-inset flex items-center gap-1 text-xs font-bold transition-all border border-white/80 dark:border-white/10 shadow-sm cursor-pointer shrink-0"
               aria-label="Stop game and go back"
             >
               <ChevronLeft className="w-4 h-4" />
-              <span>Back</span>
+              <span className="hidden xs:inline text-[11px] sm:text-xs">Exit</span>
             </button>
 
-            {/* Score / Status indicators */}
+            {/* UNIFIED MINDFUL HUD CAPSULE: Real-time peripheral biofeedback without cropping */}
             <div
-              className={`flex items-center gap-2 pointer-events-none transition-opacity duration-300 shrink-0 ${
-                isActuallyPlaying ? 'opacity-100' : 'opacity-40'
+              className={`flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-1.5 rounded-2xl backdrop-blur-xl border transition-all duration-300 shadow-md shrink-0 ${
+                isCalibrating
+                  ? 'bg-black/40 border-white/20 text-white opacity-90'
+                  : isSpilling
+                  ? 'bg-[#cb4830]/90 border-red-400/50 text-white shadow-[0_0_16px_rgba(203,72,48,0.45)]'
+                  : !isWalking && settings.walkingModeEnabled !== false
+                  ? 'bg-amber-500/85 border-amber-300/50 text-white shadow-[0_0_14px_rgba(245,158,11,0.35)]'
+                  : 'bg-white/90 dark:bg-[#1e2328]/90 border-white/80 dark:border-white/10 text-[#191c1e] dark:text-white neumorphic-raised'
               }`}
             >
-              {/* Water Left Card */}
-              <div className="flex flex-col items-start px-3 py-1.5 rounded-xl bg-[#f7f9fc]/85 dark:bg-[#2d3133]/85 backdrop-blur-md border border-white/80 dark:border-white/10 neumorphic-raised min-w-[78px]">
-                <span className="text-[10px] font-bold text-[#404751] dark:text-[#c0c7d3] tracking-wider uppercase">
+              {/* Left stat: Water percentage */}
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider opacity-75">
                   WATER
                 </span>
-                <span className="text-lg sm:text-xl font-extrabold text-[#005f9e] dark:text-[#9dcaff] drop-shadow-[0_2px_4px_rgba(0,95,158,0.2)]">
+                <span className={`text-sm sm:text-base font-black tracking-tight ${
+                  isSpilling
+                    ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]'
+                    : 'text-[#005f9e] dark:text-[#9dcaff]'
+                }`}>
                   {Math.round(waterLeft)}%
                 </span>
               </div>
 
-              {/* Time Card */}
-              <div className="flex flex-col items-end px-3 py-1.5 rounded-xl bg-[#f7f9fc]/85 dark:bg-[#2d3133]/85 backdrop-blur-md border border-white/80 dark:border-white/10 neumorphic-raised min-w-[78px]">
-                <span className="text-[10px] font-bold text-[#404751] dark:text-[#c0c7d3] tracking-wider uppercase">
+              {/* Subtle divider */}
+              <div className="w-[1px] h-3.5 sm:h-4 bg-current opacity-20" />
+
+              {/* Right stat: Time remaining */}
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider opacity-75">
                   TIME
                 </span>
-                <span className="text-lg sm:text-xl font-extrabold text-[#7c5800] dark:text-[#f4be57] drop-shadow-[0_2px_4px_rgba(124,88,0,0.2)]">
+                <span className={`text-sm sm:text-base font-black tracking-tight tabular-nums ${
+                  isSpilling
+                    ? 'text-white'
+                    : !isWalking && settings.walkingModeEnabled !== false
+                    ? 'text-white'
+                    : 'text-[#7c5800] dark:text-[#f4be57]'
+                }`}>
                   {timeLeft.toFixed(1)}s
                 </span>
               </div>
             </div>
+
+            {/* Spacer matching Exit button width so the HUD capsule stays centered */}
+            <div className="w-8 sm:w-12 shrink-0 pointer-events-none" aria-hidden="true" />
           </div>
 
-          {/* CALMING CONTINUOUS CALIBRATION OVERLAY (Replaces jerky integer resets with serene progress) */}
+          {/* GAMEPLAY STATUS BANNER ABOVE THE BOWL ("Timer Paused • Keep Walking" / "Spilling!") */}
+          {isActuallyPlaying && (isSpilling || (!isWalking && settings.walkingModeEnabled !== false)) && (
+            <div className="absolute inset-x-0 top-16 sm:top-18 z-30 flex justify-center pointer-events-none px-4 animate-fade-in">
+              {isSpilling ? (
+                <div className="bg-[#cb4830]/90 backdrop-blur-md px-4 py-1.5 rounded-2xl shadow-lg border border-red-400/40 animate-pulse flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-white shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-white leading-tight">
+                      Spilling!
+                    </span>
+                    {spillWarning && (
+                      <span className="text-[10px] font-bold text-white/90 leading-tight">
+                        {spillWarning}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-500/95 backdrop-blur-md px-4 py-2 rounded-2xl border border-amber-300/50 animate-pulse flex items-center gap-2 shadow-lg">
+                  <Footprints className="w-4 h-4 text-white animate-bounce shrink-0" />
+                  <span className="text-xs font-black tracking-wide text-white uppercase">
+                    Timer Paused • Keep Walking
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* CALMING CONTINUOUS CALIBRATION OVERLAY: Positioned cleanly ABOVE the bowl, never overlapping progress view */}
           {isCalibrating && (
-            <div className="absolute inset-0 z-40 flex flex-col items-center justify-center pointer-events-none px-6">
+            <div className="absolute inset-x-0 top-18 z-40 flex flex-col items-center pointer-events-none px-4">
               {/* Soft pulsating ambient glow that intensifies smoothly with progress */}
               <div
-                className={`absolute w-64 h-64 rounded-full blur-3xl transition-all duration-700 ${
+                className={`absolute -top-6 w-56 h-36 rounded-full blur-3xl transition-all duration-700 pointer-events-none ${
                   isDotCentered
-                    ? 'bg-[#0078c6]/30 dark:bg-[#38bdf8]/25 scale-105'
-                    : 'bg-amber-500/20 dark:bg-amber-400/15 scale-95'
+                    ? 'bg-[#0078c6]/25 dark:bg-[#38bdf8]/20 scale-105'
+                    : 'bg-amber-500/15 dark:bg-amber-400/10 scale-95'
                 }`}
               />
 
-              {/* Central status card positioned right above the dial */}
-              <div className="mb-6 flex flex-col items-center text-center animate-fade-in transition-all duration-300">
+              {/* Status card resting neatly above the 3D bowl and dial */}
+              <div className="flex flex-col items-center text-center animate-fade-in transition-all duration-300">
                 <span
-                  className={`text-[11px] font-black uppercase tracking-[0.2em] px-3.5 py-1 rounded-full backdrop-blur-md shadow-md border mb-2 transition-colors duration-300 ${
+                  className={`text-[10px] font-black uppercase tracking-[0.2em] px-3 py-0.5 rounded-full backdrop-blur-md shadow-md border mb-1.5 transition-colors duration-300 ${
                     isDotCentered
-                      ? 'bg-[#005f9e]/85 text-white border-white/30'
-                      : 'bg-[#cb4830]/85 text-white border-white/20'
+                      ? 'bg-[#005f9e]/90 text-white border-white/30'
+                      : 'bg-[#cb4830]/90 text-white border-white/20'
                   }`}
                 >
                   {isDotCentered ? 'CALIBRATING STEADINESS' : 'LEVEL THE BOWL'}
                 </span>
 
-                <h3 className="text-2xl sm:text-3xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] tracking-tight">
+                <h3 className="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] tracking-tight">
                   {isDotCentered
                     ? calibPercent >= 85
                       ? 'Almost Ready...'
@@ -850,10 +900,10 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                     : 'Center the Dot'}
                 </h3>
 
-                <p className="text-xs text-white/85 mt-1 font-medium drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] max-w-xs leading-relaxed">
+                <p className="text-xs text-white/85 mt-0.5 font-medium drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] max-w-xs leading-tight">
                   {isDotCentered
                     ? `Stabilizing mind & posture • ${calibPercent}%`
-                    : 'Gently tilt your phone until the dot rests in the center'}
+                    : 'Gently tilt phone until the dot rests in the center'}
                 </p>
               </div>
             </div>
@@ -907,24 +957,24 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             )}
           </div>
 
-          {/* CALIBRATION CENTER MARK CIRCLE (Animated to corner upon hold complete) */}
+          {/* CALIBRATION & TACTICAL CENTER MARK CIRCLE (Center during calibration, placed at bottom-right during play) */}
           <div
             className={`transition-all duration-500 ease-out z-30 pointer-events-none ${
               isCalibrating
-                ? 'absolute inset-0 flex flex-col items-center justify-center pt-24'
+                ? 'absolute inset-0 flex flex-col items-center justify-center pt-12 sm:pt-14'
                 : isTransitioning || isActuallyPlaying
-                ? 'absolute bottom-5 right-5 flex flex-col items-end justify-end'
+                ? 'absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex flex-col items-end justify-end'
                 : 'hidden'
             }`}
           >
-            {/* Tactical Dial View (Scaled 208px in center when calibrating, 96px in corner during play) */}
+            {/* Tactical Dial View (Scaled 208px in center when calibrating, 80px in bottom-right during play) */}
             <div
               className={`relative rounded-full transition-all duration-500 ease-out flex items-center justify-center ${
                 isCalibrating
                   ? isDotCentered
                     ? 'w-52 h-52 bg-[#f7f9fc]/90 dark:bg-[#191c1e]/90 shadow-[0_12px_40px_rgba(0,0,0,0.6)] border-2 border-[#0078c6]/50 dark:border-[#38bdf8]/40'
                     : 'w-52 h-52 bg-[#f7f9fc] dark:bg-[#191c1e] shadow-[0_10px_35px_rgba(0,0,0,0.5),-6px_-6px_16px_#ffffff,6px_6px_16px_#d1d9e6] dark:shadow-[0_10px_35px_rgba(0,0,0,0.8),-6px_-6px_16px_#162B3B,6px_6px_16px_#050B10] border-2 border-white/90 dark:border-white/20'
-                  : 'w-24 h-24 bg-[#f7f9fc] dark:bg-[#162B3B] neumorphic-inset border border-black/5 dark:border-white/5'
+                  : 'w-20 h-20 bg-white/95 dark:bg-[#1e2328]/95 neumorphic-raised border border-white/80 dark:border-white/10 shadow-md backdrop-blur-md'
               }`}
             >
               {/* Circular Progress Arc during Calibration */}
@@ -959,7 +1009,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
               )}
 
               {/* Inset Depth Surface */}
-              <div className="absolute inset-2 rounded-full neumorphic-inset flex items-center justify-center overflow-hidden">
+              <div className="absolute inset-1.5 rounded-full neumorphic-inset flex items-center justify-center overflow-hidden">
                 {/* Subtle Grid / Crosshairs */}
                 <svg className="absolute inset-0 w-full h-full opacity-35 pointer-events-none" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="20" fill="none" stroke="currentColor" strokeWidth="0.6" className="text-[#191c1e] dark:text-white" />
@@ -980,22 +1030,22 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                       : 'border-[#005f9e]/40 bg-[#005f9e]/10'
                   }`}
                   style={{
-                    width: isCalibrating ? innerDiaCalibPx : innerDiaPlayPx,
-                    height: isCalibrating ? innerDiaCalibPx : innerDiaPlayPx,
+                    width: isCalibrating ? innerDiaCalibPx : (innerDiaPlayPx * 0.83),
+                    height: isCalibrating ? innerDiaCalibPx : (innerDiaPlayPx * 0.83),
                   }}
                 />
 
                 {/* Dynamic Position Dot */}
                 <div
-                  className={`rounded-full absolute transition-transform duration-75 ease-out shadow-[0_0_12px_rgba(0,95,158,0.7)] ${
+                  className={`rounded-full absolute transition-transform duration-75 ease-out shadow-[0_0_10px_rgba(0,95,158,0.7)] ${
                     isCalibrating
                       ? 'w-5 h-5 bg-[#005f9e] dark:bg-[#9dcaff]'
-                      : 'w-4 h-4 bg-[#005f9e] dark:bg-[#9dcaff]'
+                      : 'w-3.5 h-3.5 bg-[#005f9e] dark:bg-[#9dcaff]'
                   }`}
                   style={{
                     transform: `translate(${
-                      tiltX * (isCalibrating ? (isDotCentered ? 55 : 68) : 36)
-                    }px, ${tiltY * (isCalibrating ? (isDotCentered ? 55 : 68) : 36)}px)`,
+                      tiltX * (isCalibrating ? (isDotCentered ? 55 : 68) : 28)
+                    }px, ${tiltY * (isCalibrating ? (isDotCentered ? 55 : 68) : 28)}px)`,
                   }}
                 />
               </div>
@@ -1014,38 +1064,6 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
               </div>
             )}
           </div>
-
-          {/* BOTTOM HUD: STATUS WARNING (during active play) */}
-          {isActuallyPlaying && (
-            <div className="relative z-20 flex justify-between items-end">
-              <div className="flex flex-col items-start pb-1">
-                {isSpilling ? (
-                  <>
-                    <span className="text-2xl font-extrabold text-[#cb4830] dark:text-[#ffb4a5] animate-pulse flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(203,72,48,0.3)]">
-                      <ShieldAlert className="w-6 h-6 text-[#cb4830] dark:text-[#ffb4a5]" />
-                      Spilling!
-                    </span>
-                    <span className="text-sm font-bold text-[#191c1e] dark:text-white/90 mt-0.5">
-                      {spillWarning}
-                    </span>
-                  </>
-                ) : !isWalking && settings.walkingModeEnabled !== false ? (
-                  <div className="bg-amber-500/20 dark:bg-amber-400/25 backdrop-blur-sm px-3.5 py-1.5 rounded-full border border-amber-500/40 animate-pulse flex items-center gap-1.5">
-                    <Footprints className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-bounce shrink-0" />
-                    <span className="text-xs font-extrabold tracking-wide text-amber-800 dark:text-amber-200 uppercase">
-                      TIMER PAUSED • KEEP WALKING
-                    </span>
-                  </div>
-                ) : (
-                  <div className="bg-[#f7f9fc]/90 dark:bg-[#191c1e]/90 backdrop-blur-sm px-3.5 py-1.5 rounded-full neumorphic-raised border border-white/80 dark:border-white/10">
-                    <span className="text-xs font-bold tracking-widest text-[#005f9e] dark:text-[#9dcaff] uppercase">
-                      KEEP IT LEVEL
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
           {/* CONFIRM QUIT DIALOG MODAL */}
           {showQuitConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -1082,19 +1100,19 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           )}
         </div>
 
-        {/* DEDICATED WALKING STATUS STRIP: Positioned BELOW the bowl card — never overlaps the bowl */}
+        {/* MINDFUL WALKING RHYTHM STRIP: Sleek biofeedback bar positioned ergonomically below the bowl */}
         {settings.walkingModeEnabled !== false && isActuallyPlaying && (
           <div className="w-full shrink-0 z-30">
             <div
-              className={`w-full flex items-center justify-between px-3.5 py-2 rounded-2xl backdrop-blur-md border transition-all duration-300 shadow-sm ${
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl backdrop-blur-md border transition-all duration-300 shadow-sm ${
                 isWalking
-                  ? 'bg-white/95 dark:bg-[#191c1e]/95 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 neumorphic-raised'
-                  : 'bg-white/95 dark:bg-[#191c1e]/95 border-amber-500/40 text-amber-800 dark:text-amber-200 neumorphic-raised'
+                  ? 'bg-white/95 dark:bg-[#1e2328]/95 border-emerald-500/30 text-emerald-800 dark:text-emerald-200 neumorphic-raised'
+                  : 'bg-white/95 dark:bg-[#1e2328]/95 border-amber-500/40 text-amber-800 dark:text-amber-200 neumorphic-raised'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  className={`p-1.5 rounded-xl shrink-0 ${
+                  className={`p-1.5 rounded-xl shrink-0 transition-colors ${
                     isWalking
                       ? 'bg-emerald-500/15 dark:bg-emerald-400/20 text-emerald-600 dark:text-emerald-400'
                       : 'bg-amber-500/20 dark:bg-amber-400/25 text-amber-600 dark:text-amber-400 animate-bounce'
@@ -1102,7 +1120,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                 >
                   <Footprints className="w-4 h-4" />
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
                   <span
                     className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 ${
                       isWalking
@@ -1110,29 +1128,28 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                         : 'bg-amber-500/20 text-amber-700 dark:text-amber-300 animate-pulse'
                     }`}
                   >
-                    {isWalking ? 'WALKING' : 'PAUSED'}
+                    {isWalking ? 'STEADY STRIDE' : 'PAUSED'}
                   </span>
-                  <span className="text-xs font-extrabold text-[#191c1e] dark:text-[#eff1f4]">
+                  <span className="text-xs font-black text-[#191c1e] dark:text-[#eff1f4]">
                     {formatWalkingDistance(walkingSteps, settings.distanceUnit, walkingState.distanceMeters).formatted}
                   </span>
+                  {walkingState.cadence > 0 && isWalking && (
+                    <span className="text-[10px] font-bold text-[#5a626f] dark:text-[#a0a8b4] hidden xs:inline">
+                      • {Math.round(walkingState.cadence)} spm
+                    </span>
+                  )}
                   {walkingState.gpsStatus === 'active' && (
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 flex items-center gap-0.5 shrink-0" title="GPS Fusion Active">
                       <Navigation className="w-2.5 h-2.5 fill-current" />
                       <span>GPS</span>
                     </span>
                   )}
-                  {isWalking && (
-                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 flex items-center gap-1 shrink-0" title="Live Motion Energy">
-                      <Activity className="w-2.5 h-2.5" />
-                      <span>{Math.max(12, Math.round(walkingState.motionEnergy * 100))}%</span>
-                    </span>
-                  )}
                 </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0 pl-2">
-                <span className="text-[11px] font-bold text-[#404751] dark:text-[#c0c7d3]">
-                  {walkingSteps} {walkingSteps === 1 ? 'step' : 'steps'}
+                <span className="text-xs font-black text-[#191c1e] dark:text-[#eff1f4]">
+                  {walkingSteps} <span className="text-[10px] font-semibold text-[#5a626f] dark:text-[#a0a8b4]">{walkingSteps === 1 ? 'step' : 'steps'}</span>
                 </span>
                 {!isWalking ? (
                   <button

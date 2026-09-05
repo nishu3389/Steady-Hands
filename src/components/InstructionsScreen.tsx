@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { Smartphone, Droplets, Footprints, Timer, CheckCircle2, Sparkles, BookOpen } from 'lucide-react';
+import { Smartphone, Droplets, Footprints, Timer, CheckCircle2, Sparkles, BookOpen, Play } from 'lucide-react';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
 
 interface InstructionsScreenProps {
   onGotIt: () => void;
   soundEnabled: boolean;
+  onOpenTutorial?: () => void;
 }
 
 export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
   onGotIt,
   soundEnabled,
+  onOpenTutorial,
 }) => {
   const [activeTab, setActiveTab] = useState<'howToPlay' | 'benefits'>('howToPlay');
 
@@ -99,7 +101,36 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
         </div>
 
         {activeTab === 'howToPlay' ? (
-          <div className="flex flex-col gap-6 animate-fade-in">
+          <div className="flex flex-col gap-5 animate-fade-in">
+            {/* Interactive Animated Tutorial Quick Launch Banner */}
+            {onOpenTutorial && (
+              <button
+                onClick={() => {
+                  if (soundEnabled) soundService.playClick();
+                  onOpenTutorial();
+                }}
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-[#005f9e] to-[#0078c6] text-white flex items-center justify-between shadow-md active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black uppercase tracking-wider text-sky-200">
+                      Visual Guide
+                    </span>
+                    <span className="text-sm font-extrabold text-white">
+                      Watch Animated Tutorial
+                    </span>
+                  </div>
+                </div>
+
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                  <Play className="w-4 h-4 text-white fill-current ml-0.5" />
+                </div>
+              </button>
+            )}
+
             <div className="flex flex-col gap-4 relative mt-1">
               {/* Timeline Connecting Line */}
               <div className="absolute w-1 bg-[#e0e3e6] dark:bg-[#2d3133] h-[82%] left-7 top-6 rounded-full z-0" />

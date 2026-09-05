@@ -7,6 +7,7 @@ import { InstructionsScreen } from './components/InstructionsScreen';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { MatchResultsModal } from './components/MatchResultsModal';
+import { InteractiveTutorialModal } from './components/InteractiveTutorialModal';
 import { AnimatePresence, motion } from 'motion/react';
 
 export default function App() {
@@ -18,6 +19,30 @@ export default function App() {
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [isGameActive, setIsGameActive] = useState(false);
   const [gameSessionKey, setGameSessionKey] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // Check first launch: show animated tutorial if not seen before
+  useEffect(() => {
+    const hasSeen = localStorage.getItem('steady_hands_tutorial_seen');
+    if (!hasSeen) {
+      setShowTutorial(true);
+    }
+  }, []);
+
+  const handleOpenTutorial = () => {
+    setShowTutorial(true);
+  };
+
+  const handleCloseTutorial = () => {
+    localStorage.setItem('steady_hands_tutorial_seen', 'true');
+    setShowTutorial(false);
+  };
+
+  const handleCompleteTutorial = () => {
+    localStorage.setItem('steady_hands_tutorial_seen', 'true');
+    setShowTutorial(false);
+    setActiveTab('play');
+  };
 
   const handleBack = () => {
     setGameResult(null);
@@ -162,6 +187,7 @@ export default function App() {
               <InstructionsScreen
                 onGotIt={() => setActiveTab('play')}
                 soundEnabled={settings.soundEnabled}
+                onOpenTutorial={handleOpenTutorial}
               />
             </motion.div>
           ) : activeTab === 'leaderboard' ? (
@@ -193,11 +219,20 @@ export default function App() {
                 onUpdateSettings={handleUpdateSettings}
                 profile={profile}
                 onUpdateProfile={handleUpdateProfile}
+                onOpenTutorial={handleOpenTutorial}
               />
             </motion.div>
           )}
         </AnimatePresence>
       </main>
+
+      {/* Interactive Step-by-Step Animated Tutorial Modal */}
+      <InteractiveTutorialModal
+        isOpen={showTutorial}
+        onClose={handleCloseTutorial}
+        onComplete={handleCompleteTutorial}
+        soundEnabled={settings.soundEnabled}
+      />
 
       {/* Bottom Tab Bar (hidden while playing or during match results to prevent switching screens) */}
       {!gameResult && !isGameActive && (

@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   vibrationEnabled: true,
   sensitivity: 1.0,
   fontSize: 'default',
+  defaultDuration: 60,
   walkingModeEnabled: true,
   distanceUnit: 'both',
   walkingSensitivity: 'high',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FontSizeOption, GameSettings, ThemeMode, UserProfile } from '../types';
-import { Sun, Moon, Smartphone, Volume2, VolumeX, UserCheck, ShieldCheck, Type, Footprints, Navigation, Activity } from 'lucide-react';
+import { GameSettings, ThemeMode, UserProfile } from '../types';
+import { Volume2, VolumeX, UserCheck, ShieldCheck, Activity, Sparkles, Play } from 'lucide-react';
 import { soundService } from '../services/audio';
 import { walkingDetector } from '../services/walkingDetector';
 
@@ -9,6 +9,7 @@ interface SettingsScreenProps {
   onUpdateSettings: (newSettings: GameSettings) => void;
   profile: UserProfile;
   onUpdateProfile: (newProfile: UserProfile) => void;
+  onOpenTutorial?: () => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
@@ -16,6 +17,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onUpdateSettings,
   profile,
   onUpdateProfile,
+  onOpenTutorial,
 }) => {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
@@ -58,11 +60,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     onUpdateSettings({ ...settings, sensitivity: val });
   };
 
-  const handleFontSizeChange = (fontSize: FontSizeOption) => {
-    if (settings.soundEnabled) soundService.playClick();
-    onUpdateSettings({ ...settings, fontSize });
-  };
-
   const handleGoogleSignIn = () => {
     if (settings.soundEnabled) soundService.playClick();
     if (profile.isSignedIn) {
@@ -83,62 +80,36 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     }
   };
 
-  const currentFontSize = settings.fontSize || 'default';
-
   return (
     <div className="flex flex-col w-full max-w-sm mx-auto p-4 sm:p-6 gap-6 pb-28 pt-6">
-      {/* Theme Section hidden for now — dark theme is the fixed default
-          (see DEFAULT_SETTINGS in services/storage.ts). handleThemeChange
-          stays defined in case this comes back. */}
-
-      {/* Text Size / Display Scaling Section */}
+      {/* Game Tutorial & Guide Section */}
       <section className="flex flex-col gap-2">
-        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Text Size</h2>
+        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">How to Play</h2>
         <div className="p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised flex flex-col gap-3.5 border border-white/60 dark:border-transparent">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 text-[#191c1e] dark:text-[#eff1f4]">
-              <Type className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
-              <span className="font-medium text-base">App Font Scale</span>
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#eef4fb] dark:bg-[#152331] text-[#005f9e] dark:text-[#9dcaff] flex items-center justify-center shrink-0 shadow-inner">
+              <Sparkles className="w-5 h-5" />
             </div>
-            <span className="font-bold text-xs sm:text-sm text-[#005f9e] dark:text-[#9dcaff]">
-              {currentFontSize === 'default'
-                ? 'Normal (100%)'
-                : currentFontSize === 'medium'
-                ? 'Medium (110%)'
-                : 'Large (120%)'}
-            </span>
+            <div className="flex flex-col">
+              <span className="font-bold text-base text-[#191c1e] dark:text-[#eff1f4]">
+                Animated Tutorial
+              </span>
+              <p className="text-xs text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed mt-0.5">
+                4-step animated walkthrough teaching level calibration, walking rhythm, spill prevention, and steadiness scores.
+              </p>
+            </div>
           </div>
 
-          {/* Segmented Font Size Options */}
-          <div className="flex bg-[#e9edf2] dark:bg-[#162B3B] rounded-xl p-1 shadow-inner gap-1">
-            {[
-              { key: 'default' as FontSizeOption, label: 'Normal' },
-              { key: 'medium' as FontSizeOption, label: 'Medium' },
-              { key: 'large' as FontSizeOption, label: 'Large' },
-            ].map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleFontSizeChange(item.key)}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
-                  currentFontSize === item.key
-                    ? 'bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-sm'
-                    : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
-                }`}
-              >
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Live Preview Sample */}
-          <div className="p-3 rounded-xl bg-[#f0f4f9] dark:bg-[#0e1720] border border-black/5 dark:border-white/5 flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#707882]">
-              Live Preview
-            </span>
-            <p className="text-xs sm:text-sm text-[#191c1e] dark:text-[#eff1f4] leading-relaxed">
-              Hold your phone flat and steady to keep the water centered.
-            </p>
-          </div>
+          <button
+            onClick={() => {
+              if (settings.soundEnabled) soundService.playClick();
+              onOpenTutorial?.();
+            }}
+            className="w-full py-3 px-4 rounded-xl bg-[#005f9e] dark:bg-[#9dcaff] text-white dark:text-[#003258] font-bold text-sm tracking-wide transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-md cursor-pointer hover:opacity-95"
+          >
+            <Play className="w-4 h-4 fill-current" />
+            <span>Launch Animated Tutorial</span>
+          </button>
         </div>
       </section>
 
@@ -172,223 +143,87 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </div>
       </section>
 
-      {/* Walking Status & Mindful Movement Section */}
+      {/* Sensor Diagnostics / Test Sensors Section */}
       <section className="flex flex-col gap-2">
-        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Walking Status</h2>
-        <div className="p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised flex flex-col gap-4 border border-white/60 dark:border-transparent">
-          {/* Walking Mode Toggle */}
+        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Sensor Diagnostics</h2>
+        <div className="p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised flex flex-col gap-3.5 border border-white/60 dark:border-transparent">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5 text-[#191c1e] dark:text-[#eff1f4]">
-              <Footprints className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
-              <div className="flex flex-col text-left">
-                <span className="font-medium text-base">Require Walking to Play</span>
-                <span className="text-xs text-[#707882] dark:text-[#a0a8b4]">
-                  Pause timer when you stop walking
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                if (settings.soundEnabled) soundService.playClick();
-                onUpdateSettings({
-                  ...settings,
-                  walkingModeEnabled: settings.walkingModeEnabled === false ? true : false,
-                });
-              }}
-              className="relative w-14 h-8 bg-[#e0e3e6] dark:bg-[#050B10] rounded-full transition-colors duration-300 focus:outline-none p-1 neumorphic-inset shrink-0 ml-2 cursor-pointer"
-              aria-label="Toggle Walking Mode"
-            >
-              <div
-                className={`w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${
-                  settings.walkingModeEnabled !== false
-                    ? 'translate-x-6 bg-[#005f9e] dark:bg-[#0078c6]'
-                    : 'translate-x-0 bg-[#707882]'
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Walking Detection Sensitivity Selector */}
-          <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-            <div className="flex justify-between text-sm text-[#404751] dark:text-[#c0c7d3]">
-              <div>
-                <span className="font-semibold block">Walking Detection Sensitivity</span>
-                <span className="text-[11px] text-[#707882] dark:text-[#a0a8b4]">
-                  {settings.walkingSensitivity === 'medium'
-                    ? 'Standard bipedal walking cadence'
-                    : settings.walkingSensitivity === 'low'
-                    ? 'Vigorous stride required'
-                    : 'Steady Hands — Ultra-sensitive micro-bounce detection for balancing'}
-                </span>
-              </div>
-            </div>
-            <div className="flex bg-[#e9edf2] dark:bg-[#162B3B] rounded-xl p-1 shadow-inner gap-1">
-              {[
-                { key: 'high' as const, label: 'Steady Hands (Recommended)' },
-                { key: 'medium' as const, label: 'Standard' },
-                { key: 'low' as const, label: 'Active' },
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() => {
-                    if (settings.soundEnabled) soundService.playClick();
-                    onUpdateSettings({ ...settings, walkingSensitivity: item.key });
-                  }}
-                  className={`flex-1 py-1.5 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer truncate ${
-                    (settings.walkingSensitivity || 'high') === item.key
-                      ? 'bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-sm'
-                      : 'text-[#404751] dark:text-[#c0c7d3]'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* GPS Walking Assistance Toggle */}
-          <div className="flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/5">
-            <div className="flex items-center gap-2.5 text-[#191c1e] dark:text-[#eff1f4]">
-              <Navigation className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
-              <div className="flex flex-col text-left">
-                <span className="font-medium text-base">GPS Walking Fusion</span>
-                <span className="text-xs text-[#707882] dark:text-[#a0a8b4]">
-                  Combines outdoor GPS velocity with motion sensors
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                if (settings.soundEnabled) soundService.playClick();
-                onUpdateSettings({
-                  ...settings,
-                  gpsEnabled: settings.gpsEnabled === false ? true : false,
-                });
-              }}
-              className="relative w-14 h-8 bg-[#e0e3e6] dark:bg-[#050B10] rounded-full transition-colors duration-300 focus:outline-none p-1 neumorphic-inset shrink-0 ml-2 cursor-pointer"
-              aria-label="Toggle GPS Walking Fusion"
-            >
-              <div
-                className={`w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${
-                  settings.gpsEnabled !== false
-                    ? 'translate-x-6 bg-[#005f9e] dark:bg-[#0078c6]'
-                    : 'translate-x-0 bg-[#707882]'
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Distance Unit Selector */}
-          <div className="flex flex-col gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-            <div className="flex justify-between text-sm text-[#404751] dark:text-[#c0c7d3]">
-              <span>Distance Display Unit</span>
-              <span className="font-bold text-[#005f9e] dark:text-[#9dcaff]">
-                {settings.distanceUnit === 'feet' ? 'Feet (ft)' : settings.distanceUnit === 'meters' ? 'Meters (m)' : 'Both (ft & m)'}
-              </span>
-            </div>
-            <div className="flex bg-[#e9edf2] dark:bg-[#162B3B] rounded-xl p-1 shadow-inner gap-1">
-              {[
-                { key: 'both' as const, label: 'Both' },
-                { key: 'feet' as const, label: 'Feet' },
-                { key: 'meters' as const, label: 'Meters' },
-              ].map((unit) => (
-                <button
-                  key={unit.key}
-                  onClick={() => {
-                    if (settings.soundEnabled) soundService.playClick();
-                    onUpdateSettings({ ...settings, distanceUnit: unit.key });
-                  }}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    (settings.distanceUnit || 'both') === unit.key
-                      ? 'bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-sm'
-                      : 'text-[#404751] dark:text-[#c0c7d3]'
-                  }`}
-                >
-                  {unit.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Live Real-Device Sensor Tester */}
-          <div className="flex flex-col gap-2.5 pt-3 border-t border-black/5 dark:border-white/5">
-            <div className="flex items-center justify-between">
+              <Activity className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-[#191c1e] dark:text-[#eff1f4]">Device Sensor Diagnostic</span>
-                <span className="text-[11px] text-[#707882] dark:text-[#a0a8b4]">
-                  Verify walking detection on this phone while holding it steady
+                <span className="font-medium text-base">Test Device Sensors</span>
+                <span className="text-xs text-[#707882] dark:text-[#a0a8b4]">
+                  Verify walking detection on this phone
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (settings.soundEnabled) soundService.playClick();
-                  setIsTestingSensors(!isTestingSensors);
-                }}
-                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer ${
-                  isTestingSensors
-                    ? 'bg-rose-600 hover:bg-rose-700 text-white'
-                    : 'bg-[#005f9e] hover:bg-[#004f84] text-white'
-                }`}
-              >
-                {isTestingSensors ? 'Stop Test' : 'Test Sensors'}
-              </button>
             </div>
-
-            {isTestingSensors && (
-              <div className="p-3 bg-[#e9edf2]/70 dark:bg-[#101b24] rounded-xl border border-black/5 dark:border-white/5 flex flex-col gap-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-[#707882] dark:text-[#a0a8b4]">Walking Status:</span>
-                  <span
-                    className={`font-black px-2 py-0.5 rounded-full uppercase text-[10px] ${
-                      testState.isWalking
-                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
-                        : 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
-                    }`}
-                  >
-                    {testState.isWalking ? 'Walking Detected' : 'Stationary / Paused'}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-[#707882] dark:text-[#a0a8b4]">Steps Detected:</span>
-                  <span className="font-bold text-[#191c1e] dark:text-[#eff1f4]">
-                    {testState.steps} steps
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-[#707882] dark:text-[#a0a8b4]">GPS Status:</span>
-                  <span className="font-semibold capitalize text-[#005f9e] dark:text-[#9dcaff]">
-                    {testState.gpsStatus} {testState.gpsSpeedMps > 0 ? `(${Math.round(testState.gpsSpeedMps * 3.6)} km/h)` : ''}
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[11px] text-[#707882] dark:text-[#a0a8b4]">
-                    <span>Motion Intensity:</span>
-                    <span className="font-mono font-bold text-[#191c1e] dark:text-[#eff1f4]">
-                      {Math.round(testState.motionEnergy * 100)}%
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-[#d2d7df] dark:bg-[#1e2f3e] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-150 ${
-                        testState.isWalking ? 'bg-emerald-500' : 'bg-[#005f9e]'
-                      }`}
-                      style={{ width: `${Math.min(100, Math.max(8, testState.motionEnergy * 100))}%` }}
-                    />
-                  </div>
-                </div>
-
-                <p className="text-[10px] text-[#707882] dark:text-[#8a94a2] italic pt-1 border-t border-black/5 dark:border-white/5">
-                  Hold device flat and steady in your palms and take 3 gentle steps. The meter and status will update automatically.
-                </p>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (settings.soundEnabled) soundService.playClick();
+                setIsTestingSensors(!isTestingSensors);
+              }}
+              className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer ${
+                isTestingSensors
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                  : 'bg-[#005f9e] hover:bg-[#004f84] text-white'
+              }`}
+            >
+              {isTestingSensors ? 'Stop Test' : 'Test Sensors'}
+            </button>
           </div>
+
+          {isTestingSensors && (
+            <div className="p-3 bg-[#e9edf2]/70 dark:bg-[#101b24] rounded-xl border border-black/5 dark:border-white/5 flex flex-col gap-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[#707882] dark:text-[#a0a8b4]">Walking Status:</span>
+                <span
+                  className={`font-black px-2 py-0.5 rounded-full uppercase text-[10px] ${
+                    testState.isWalking
+                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                  }`}
+                >
+                  {testState.isWalking ? 'Walking Detected' : 'Stationary / Paused'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-[#707882] dark:text-[#a0a8b4]">Steps Detected:</span>
+                <span className="font-bold text-[#191c1e] dark:text-[#eff1f4]">
+                  {testState.steps} steps
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-[#707882] dark:text-[#a0a8b4]">GPS Status:</span>
+                <span className="font-semibold capitalize text-[#005f9e] dark:text-[#9dcaff]">
+                  {testState.gpsStatus} {testState.gpsSpeedMps > 0 ? `(${Math.round(testState.gpsSpeedMps * 3.6)} km/h)` : ''}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between text-[11px] text-[#707882] dark:text-[#a0a8b4]">
+                  <span>Motion Intensity:</span>
+                  <span className="font-mono font-bold text-[#191c1e] dark:text-[#eff1f4]">
+                    {Math.round(testState.motionEnergy * 100)}%
+                  </span>
+                </div>
+                <div className="w-full h-2 bg-[#d2d7df] dark:bg-[#1e2f3e] rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-150 ${
+                      testState.isWalking ? 'bg-emerald-500' : 'bg-[#005f9e]'
+                    }`}
+                    style={{ width: `${Math.min(100, Math.max(8, testState.motionEnergy * 100))}%` }}
+                  />
+                </div>
+              </div>
+
+              <p className="text-[10px] text-[#707882] dark:text-[#8a94a2] italic pt-1 border-t border-black/5 dark:border-white/5">
+                Hold device flat and steady in your palms and take a few gentle steps. The meter and status will update automatically.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

@@ -33,6 +33,7 @@ export interface GameSettings {
   vibrationEnabled: boolean;
   sensitivity: number; // 0.5 to 2.0
   fontSize: FontSizeOption;
+  defaultDuration?: DurationOption; // 45 | 60 | 90 seconds (defaults to 60)
   walkingModeEnabled: boolean; // Must walk to play
   distanceUnit: DistanceUnit; // 'feet' | 'meters' | 'both'
   walkingSensitivity?: WalkingSensitivity; // 'high' (Steady Hands/Mindful) | 'medium' | 'low'

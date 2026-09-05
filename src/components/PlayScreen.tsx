@@ -88,7 +88,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
 }) => {
   // Lobby Settings
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>('medium');
-  const [selectedDuration, setSelectedDuration] = useState<DurationOption>(45);
+  const [selectedDuration, setSelectedDuration] = useState<DurationOption>(settings.defaultDuration || 60);
   const [showMindfulTip, setShowMindfulTip] = useState(false);
   const [activeBenefitIndex, setActiveBenefitIndex] = useState(0);
 
@@ -173,7 +173,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
 
   // Game State
   const [waterLeft, setWaterLeft] = useState(100);
-  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [timeLeft, setTimeLeft] = useState<number>(settings.defaultDuration || 60);
   const [tiltX, setTiltX] = useState(0); // normalized -1..1, for the UI dot + bowl visual only
   const [tiltY, setTiltY] = useState(0); // (real gameplay math runs on bowlTiltXRef/bowlTiltZRef, in true degrees/radians)
   const [spillWarning, setSpillWarning] = useState<string | null>(null);
@@ -185,7 +185,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
 
   // References for fast animation/interval loop
   const waterLeftRef = useRef(100);
-  const timeLeftRef = useRef<number>(30);
+  const timeLeftRef = useRef<number>(settings.defaultDuration || 60);
   const gamePhaseRef = useRef<GamePhase>('lobby');
   const holdProgressRef = useRef(0);
   const lastTickSecRef = useRef(4);
@@ -1176,7 +1176,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   // RENDER: LOBBY VIEW (matching exact light mode design)
   // ----------------------------------------------------
   return (
-    <div className="flex flex-col w-full max-w-sm mx-auto items-center justify-between min-h-[calc(100vh-160px)] px-6 pt-4 pb-[calc(140px+env(safe-area-inset-bottom,0px))] gap-5 select-none">
+    <div className="flex flex-col w-full max-w-sm mx-auto items-center px-6 pt-3 pb-24 gap-4 select-none">
       {/* Best Steadiness Record Card */}
       <div className="w-full bg-white dark:bg-[#191c1e] rounded-2xl p-4 flex flex-col items-center justify-center card-raised border border-white/60 dark:border-transparent">
         <span className="text-[12px] font-bold text-[#404751] dark:text-[#c0c7d3] mb-0.5 tracking-[0.1em] uppercase">
@@ -1192,34 +1192,6 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
         </div>
         <span className="text-[11px] font-semibold text-[#707882] dark:text-[#a0a8b4] tracking-wide mt-0.5">
           Body & Posture Stability
-        </span>
-      </div>
-
-      {/* Mindful Walking Mode Status Banner */}
-      <div className="w-full p-3.5 rounded-2xl bg-white dark:bg-[#191c1e] card-raised border border-white/60 dark:border-transparent flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="p-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-400/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-            <Footprints className="w-4 h-4" />
-          </div>
-          <div className="flex flex-col text-left min-w-0 flex-1">
-            <span className="text-xs font-bold text-[#191c1e] dark:text-[#eff1f4] leading-snug">
-              {settings.walkingModeEnabled !== false ? 'Walking Required' : 'Walking Status'}
-            </span>
-            <p className="text-[11px] text-[#707882] dark:text-[#a0a8b4] leading-normal mt-0.5">
-              {settings.walkingModeEnabled !== false
-                ? 'Walk steadily to keep the timer running'
-                : 'Seated mode: Timer runs without walking'}
-            </p>
-          </div>
-        </div>
-        <span
-          className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full shrink-0 self-center ${
-            settings.walkingModeEnabled !== false
-              ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25'
-              : 'bg-black/5 dark:bg-white/10 text-[#707882] dark:text-[#a0a8b4]'
-          }`}
-        >
-          {settings.walkingModeEnabled !== false ? 'ACTIVE' : 'OFF'}
         </span>
       </div>
 
@@ -1317,7 +1289,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       </div>
 
       {/* Center Stylish Start Button with Ambient Glow & Rotating Circle Orbit */}
-      <div className="flex-1 w-full flex items-center justify-center py-4 relative my-1">
+      <div className="w-full flex items-center justify-center py-2 relative my-1">
         <div className="relative w-56 h-56 flex items-center justify-center">
           {/* Radiant Ambient Glow Behind Button */}
           <div className="absolute inset-1 rounded-full bg-gradient-to-tr from-[#005f9e]/35 via-[#00a8ff]/30 to-[#f59e0b]/25 dark:from-[#0078c6]/50 dark:via-[#38bdf8]/40 dark:to-[#fbbf24]/30 blur-2xl animate-pulse-glow pointer-events-none" />

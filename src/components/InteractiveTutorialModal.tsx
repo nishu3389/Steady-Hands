@@ -545,52 +545,63 @@ export const InteractiveTutorialModal: React.FC<InteractiveTutorialModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-fade-in select-none">
-      <div className="w-full max-w-sm rounded-3xl bg-[#f7f9fc] dark:bg-[#191c1e] border border-white/90 dark:border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden neumorphic-raised">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#f0f4f9] dark:bg-[#12161a] text-[#191c1e] dark:text-[#eff1f4] select-none overflow-y-auto overscroll-contain animate-fade-in">
+      <div className="w-full max-w-md mx-auto flex-1 flex flex-col justify-between min-h-full px-5 pt-[calc(1rem+env(safe-area-inset-top,0px))] pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] gap-4">
         {/* Top Header Bar */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-black/[0.04] dark:border-white/[0.06]">
-          {/* Progress Indicators */}
-          <div className="flex items-center gap-1.5">
-            {tutorialSteps.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  if (soundEnabled) soundService.playClick();
-                  setCurrentStep(idx);
-                }}
-                className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                  currentStep === idx
-                    ? 'w-6 bg-[#005f9e] dark:bg-[#9dcaff]'
-                    : currentStep > idx
-                    ? 'w-2 bg-emerald-500'
-                    : 'w-2 bg-slate-300 dark:bg-slate-700'
-                }`}
-                aria-label={`Go to step ${idx + 1}`}
-              />
-            ))}
+        <div className="flex items-center justify-between py-2 border-b border-black/[0.05] dark:border-white/[0.08]">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#005f9e] dark:text-[#9dcaff]">
+              Interactive Guide
+            </span>
+            <span className="text-sm font-extrabold text-[#191c1e] dark:text-[#eff1f4]">
+              How to Play
+            </span>
           </div>
 
-          {/* Close / Skip Button */}
-          <button
-            onClick={handleSkip}
-            className="p-1.5 rounded-full text-[#5a626f] dark:text-[#a0a8b4] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-            aria-label="Skip Tutorial"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Progress Indicators & Close */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              {tutorialSteps.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (soundEnabled) soundService.playClick();
+                    setCurrentStep(idx);
+                  }}
+                  className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                    currentStep === idx
+                      ? 'w-7 bg-[#005f9e] dark:bg-[#9dcaff]'
+                      : currentStep > idx
+                      ? 'w-2.5 bg-emerald-500'
+                      : 'w-2 bg-slate-300 dark:bg-slate-700'
+                  }`}
+                  aria-label={`Go to step ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={handleSkip}
+              className="p-2 rounded-xl text-[#5a626f] dark:text-[#a0a8b4] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer flex items-center gap-1 font-bold text-xs"
+              aria-label="Skip Tutorial"
+            >
+              <span>Skip</span>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Step Animated Graphic Container */}
-        <div className="w-full bg-[#f0f4f9] dark:bg-[#15181b] border-b border-black/[0.04] dark:border-white/[0.06] flex items-center justify-center min-h-[220px]">
+        {/* Step Animated Graphic Card */}
+        <div className="w-full bg-white dark:bg-[#191c1e] rounded-3xl p-4 card-raised border border-white/80 dark:border-white/5 flex items-center justify-center min-h-[250px] sm:min-h-[280px] shadow-sm">
           {step.component}
         </div>
 
         {/* Text Details Container */}
-        <div className="p-5 flex flex-col gap-2">
+        <div className="w-full flex flex-col gap-2 px-1">
           <span className="text-[11px] font-black uppercase tracking-wider text-[#005f9e] dark:text-[#9dcaff]">
             {step.tagline}
           </span>
-          <h2 className="text-xl font-black text-[#191c1e] dark:text-[#eff1f4] leading-tight">
+          <h2 className="text-2xl font-black text-[#191c1e] dark:text-[#eff1f4] leading-tight">
             {step.title}
           </h2>
           <p className="text-xs sm:text-sm font-medium text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed">
@@ -599,11 +610,11 @@ export const InteractiveTutorialModal: React.FC<InteractiveTutorialModalProps> =
         </div>
 
         {/* Navigation Actions Footer */}
-        <div className="p-4 pt-1 flex items-center gap-2.5">
+        <div className="w-full pt-2 flex items-center gap-3">
           {currentStep > 0 && (
             <button
               onClick={handlePrev}
-              className="h-12 px-4 rounded-2xl bg-white dark:bg-[#1e2328] text-[#191c1e] dark:text-[#eff1f4] font-bold text-sm neumorphic-raised active:neumorphic-inset border border-white/80 dark:border-white/10 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+              className="h-14 px-5 rounded-2xl bg-white dark:bg-[#1e2328] text-[#191c1e] dark:text-[#eff1f4] font-bold text-sm card-raised active:neumorphic-inset border border-white/80 dark:border-white/10 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm"
               aria-label="Previous step"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -613,7 +624,7 @@ export const InteractiveTutorialModal: React.FC<InteractiveTutorialModalProps> =
 
           <button
             onClick={handleNext}
-            className="flex-1 h-12 rounded-2xl bg-[#005f9e] dark:bg-[#9dcaff] text-white dark:text-[#003258] font-black text-sm uppercase tracking-wider transition-all duration-200 active:scale-[0.98] shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-1 h-14 rounded-2xl bg-[#005f9e] dark:bg-[#9dcaff] text-white dark:text-[#003258] font-black text-sm uppercase tracking-wider transition-all duration-200 active:scale-[0.98] shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
           >
             {currentStep === tutorialSteps.length - 1 ? (
               <>

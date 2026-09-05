@@ -234,8 +234,8 @@ export default function App() {
         soundEnabled={settings.soundEnabled}
       />
 
-      {/* Bottom Tab Bar (hidden while playing or during match results to prevent switching screens) */}
-      {!gameResult && !isGameActive && (
+      {/* Bottom Tab Bar (hidden while playing, during match results, or while tutorial is active) */}
+      {!gameResult && !isGameActive && !showTutorial && (
         <BottomNav
           activeTab={activeTab}
           onTabChange={(tab) => {

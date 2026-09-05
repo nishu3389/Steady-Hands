@@ -25,6 +25,7 @@ export interface UserProfile {
   isSignedIn: boolean;
   streak: number;
   lastPlayedDate: string;
+  email?: string;
 }
 
 export interface GameSettings {

@@ -21,10 +21,10 @@ const DEFAULT_SETTINGS: GameSettings = {
 };
 
 const DEFAULT_PROFILE: UserProfile = {
-  name: 'Alex Chen',
-  avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDsTmal7IwMa9qg0mxMcIt-ZBhVllEW5OQAS6Vwq_I1ba_iOjsL4V0b-Rw895bB8AjIi1Lf01-6bEmJVaza08UR8Xli84OyVPP2rshQYp6lV6l2ohQdJ3-bUgrxvv2WxpbznUxTWcsXSlYabAb3GO4iCS3Doioj_klSUMrFxR21FjnzPY7bsMiAI2U2yzemWN924j38-uWYHAPMr5nFuNzL-9KUO4ukXRQfcAmmRVLQ5pWg4DlL7i2u',
-  isSignedIn: true,
-  streak: 12,
+  name: 'Guest Player',
+  avatarUrl: '',
+  isSignedIn: false,
+  streak: 0,
   lastPlayedDate: new Date().toISOString(),
 };
 
@@ -107,7 +107,12 @@ export const storageService = {
   getProfile(): UserProfile {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.PROFILE);
-      return data ? { ...DEFAULT_PROFILE, ...JSON.parse(data) } : DEFAULT_PROFILE;
+      if (!data) return DEFAULT_PROFILE;
+      const parsed = JSON.parse(data);
+      if (parsed.name === 'Alex Chen' && !parsed.email) {
+        return DEFAULT_PROFILE;
+      }
+      return { ...DEFAULT_PROFILE, ...parsed };
     } catch {
       return DEFAULT_PROFILE;
     }

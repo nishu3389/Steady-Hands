@@ -1,8 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { GameSettings, ThemeMode, UserProfile } from '../types';
-import { Volume2, VolumeX, UserCheck, ShieldCheck, Activity, Sparkles, Play } from 'lucide-react';
+import {
+  Volume2,
+  VolumeX,
+  User,
+  UserCheck,
+  ShieldCheck,
+  Activity,
+  Sparkles,
+  Play,
+  Mail,
+  Loader2,
+  AlertCircle,
+  X,
+} from 'lucide-react';
 import { soundService } from '../services/audio';
 import { walkingDetector } from '../services/walkingDetector';
+import { signInWithGoogle, signOutFromGoogle, isGoogleAuthConfigured } from '../services/googleAuth';
 
 interface SettingsScreenProps {
   settings: GameSettings;
@@ -23,6 +37,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [nameInput, setNameInput] = useState(profile.name);
   const [isTestingSensors, setIsTestingSensors] = useState(false);
   const [testState, setTestState] = useState(() => walkingDetector.getState());
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Sync name input when profile updates
+  useEffect(() => {
+    setNameInput(profile.name);
+  }, [profile.name]);
 
   useEffect(() => {
     if (!isTestingSensors) return;
@@ -60,16 +81,45 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     onUpdateSettings({ ...settings, sensitivity: val });
   };
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     if (settings.soundEnabled) soundService.playClick();
+    setAuthError(null);
+
+    // If currently signed in, sign out
     if (profile.isSignedIn) {
-      onUpdateProfile({ ...profile, isSignedIn: false });
-    } else {
+      try {
+        await signOutFromGoogle(profile.email);
+      } catch {
+        // Ignore sign-out cleanup errors
+      }
+      onUpdateProfile({
+        ...profile,
+        isSignedIn: false,
+        name: 'Guest Player',
+        avatarUrl: '',
+        email: undefined,
+      });
+      setNameInput('Guest Player');
+      return;
+    }
+
+    // Launch Google Sign-In flow
+    setIsSigningIn(true);
+    try {
+      const googleUser = await signInWithGoogle();
       onUpdateProfile({
         ...profile,
         isSignedIn: true,
-        name: 'Alex Chen',
+        name: googleUser.name,
+        avatarUrl: googleUser.picture,
+        email: googleUser.email,
       });
+      setNameInput(googleUser.name);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setAuthError(error.message || 'Google Sign-In could not be completed.');
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -147,12 +197,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       <section className="flex flex-col gap-2">
         <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Sensor Diagnostics</h2>
         <div className="p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised flex flex-col gap-3.5 border border-white/60 dark:border-transparent">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 text-[#191c1e] dark:text-[#eff1f4]">
-              <Activity className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
-              <div className="flex flex-col">
-                <span className="font-medium text-base">Test Device Sensors</span>
-                <span className="text-xs text-[#707882] dark:text-[#a0a8b4]">
+          <div className="flex items-center justify-between gap-5 sm:gap-6">
+            <div className="flex items-center gap-3 text-[#191c1e] dark:text-[#eff1f4] min-w-0 flex-1">
+              <Activity className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff] shrink-0" />
+              <div className="flex flex-col min-w-0 pr-1 sm:pr-2">
+                <span className="font-medium text-base leading-snug">Test Device Sensors</span>
+                <span className="text-xs text-[#707882] dark:text-[#a0a8b4] mt-0.5 leading-normal">
                   Verify walking detection on this phone
                 </span>
               </div>
@@ -163,7 +213,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 if (settings.soundEnabled) soundService.playClick();
                 setIsTestingSensors(!isTestingSensors);
               }}
-              className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer ${
+              className={`shrink-0 px-4 py-2.5 text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer whitespace-nowrap active:scale-95 ${
                 isTestingSensors
                   ? 'bg-rose-600 hover:bg-rose-700 text-white'
                   : 'bg-[#005f9e] hover:bg-[#004f84] text-white'

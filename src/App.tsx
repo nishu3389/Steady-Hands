@@ -203,6 +203,7 @@ export default function App() {
                 entries={leaderboard}
                 onPlayNow={() => setActiveTab('play')}
                 soundEnabled={settings.soundEnabled}
+                profile={profile}
               />
             </motion.div>
           ) : (

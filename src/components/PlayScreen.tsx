@@ -7,7 +7,8 @@ import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
 import { walkingDetector, formatWalkingDistance } from '../services/walkingDetector';
 import { LocationResolver } from '../services/locationResolver';
-import { AdMobBanner } from './AdMobBanner';
+import { adMobService } from '../services/adMobService';
+import { AdMimicBanner } from './AdMimicBanner';
 
 interface PlayScreenProps {
   settings: GameSettings;
@@ -95,6 +96,18 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
 
   // Game Phases: 'lobby' -> 'calibrating' (3s hold in center) -> 'transitioning' -> 'playing'
   const [gamePhase, setGamePhase] = useState<GamePhase>('lobby');
+
+  // Native AdMob Banner Lifecycle: show on home lobby, hide during active gameplay/calibration
+  useEffect(() => {
+    if (gamePhase === 'lobby') {
+      adMobService.showBanner();
+    } else {
+      adMobService.hideBanner();
+    }
+    return () => {
+      adMobService.hideBanner();
+    };
+  }, [gamePhase]);
 
   // Auto-cycle through mindful benefits sequentially every 6 seconds when expanded in lobby
   useEffect(() => {
@@ -1417,8 +1430,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           </div>
         </div>
 
-        {/* Google AdMob Banner Placement (Below Duration Selection) */}
-        <AdMobBanner />
+        {/* AdMob Banner Placement Preview */}
+        <AdMimicBanner placement="home" />
       </div>
 
       {/* LOCATION REQUIRED DIALOG -- shown when the player denied location

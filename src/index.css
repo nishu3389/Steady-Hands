@@ -174,3 +174,61 @@
   animation: countdown-ripple 0.85s ease-out both;
 }
 
+/* Rank Screen Neumorphic Styles */
+.neu-flat {
+  background: #191d21;
+  box-shadow: 6px 6px 14px #0d0f11, -5px -5px 12px #252b31;
+}
+
+.neu-card {
+  background: #191d21;
+  box-shadow: 5px 6px 12px #0d0f11, -4px -4px 10px #242930;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.neu-card-podium {
+  background: linear-gradient(145deg, #1b2025, #16191c);
+  box-shadow: 6px 8px 16px #0b0d0e, -4px -4px 10px #23282f;
+  border: 1px solid rgba(56, 189, 248, 0.08);
+}
+
+.neu-inset {
+  background: #131618;
+  box-shadow: inset 4px 4px 8px #0b0d0e, inset -3px -3px 6px #1f2429;
+}
+
+.neu-btn-active {
+  background: #15181b;
+  box-shadow: inset 3px 3px 6px #0c0e0f, inset -2px -2px 5px #20262c;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.neu-active-glow {
+  background: #171d24;
+  box-shadow: inset 3px 3px 6px #0c1015, inset -2px -2px 5px #222a33, 0 0 14px rgba(47, 143, 224, 0.28);
+  border: 1px solid rgba(47, 143, 224, 0.4);
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(0.92);
+    opacity: 0.8;
+  }
+}
+
+.ripple-ring-1 {
+  animation: pulseRing 4s ease-in-out infinite;
+}
+
+.ripple-ring-2 {
+  animation: pulseRing 4s ease-in-out 1.2s infinite;
+}
+

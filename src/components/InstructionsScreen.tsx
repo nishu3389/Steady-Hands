@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Smartphone, Droplets, Footprints, Timer, CheckCircle2, Sparkles, BookOpen, Play } from 'lucide-react';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
+import { AdMimicBanner } from './AdMimicBanner';
 
 interface InstructionsScreenProps {
   onGotIt: () => void;
@@ -99,6 +100,9 @@ export const InstructionsScreen: React.FC<InstructionsScreenProps> = ({
               : 'A physical mindfulness exercise in somatic awareness.'}
           </p>
         </div>
+
+        {/* AdMob Banner Placement Preview */}
+        <AdMimicBanner placement="instructions" />
 
         {activeTab === 'howToPlay' ? (
           <div className="flex flex-col gap-5 animate-fade-in">

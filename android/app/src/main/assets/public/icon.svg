@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#005f9e" />
+      <stop offset="100%" stop-color="#002d4f" />
+    </linearGradient>
+    <linearGradient id="bowlGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#d1d9e6" />
+    </linearGradient>
+    <linearGradient id="waterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- App Icon Rounded Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Subtle Inner Ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="4" stroke-dasharray="10 8" />
+
+  <!-- Outer Wooden/Ceramic Bowl Shadow & Rim -->
+  <g filter="url(#shadow)">
+    <!-- Bowl Outer Body -->
+    <path d="M 120 230 C 120 360, 392 360, 392 230 C 392 210, 120 210, 120 230 Z" fill="url(#bowlGrad)" />
+    
+    <!-- Bowl Inner Surface -->
+    <ellipse cx="256" cy="225" rx="136" ry="42" fill="#1e293b" fill-opacity="0.15" />
+
+    <!-- Water Surface with Wave Ripple -->
+    <ellipse cx="256" cy="235" rx="122" ry="34" fill="url(#waterGrad)" />
+    
+    <!-- Water Highlights / Caustics -->
+    <path d="M 160 235 C 190 226, 230 242, 270 232 C 310 224, 340 236, 360 235 C 330 248, 200 248, 160 235 Z" fill="#ffffff" fill-opacity="0.45" />
+
+    <!-- Water Droplet Splash in Air -->
+    <circle cx="256" cy="155" r="14" fill="#38bdf8" />
+    <circle cx="256" cy="151" r="5" fill="#ffffff" fill-opacity="0.75" />
+    <circle cx="215" cy="180" r="7" fill="#38bdf8" />
+    <circle cx="295" cy="175" r="8" fill="#38bdf8" />
+  </g>
+
+  <!-- Zen Horizon Line -->
+  <path d="M 80 410 Q 256 425 432 410" stroke="#ffffff" stroke-opacity="0.12" stroke-width="3" stroke-linecap="round" fill="none"/>
+</svg>

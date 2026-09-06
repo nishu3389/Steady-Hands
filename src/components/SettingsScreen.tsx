@@ -17,6 +17,7 @@ import {
 import { soundService } from '../services/audio';
 import { walkingDetector } from '../services/walkingDetector';
 import { signInWithGoogle, signOutFromGoogle, isGoogleAuthConfigured } from '../services/googleAuth';
+import { AdMimicBanner } from './AdMimicBanner';
 
 interface SettingsScreenProps {
   settings: GameSettings;
@@ -396,6 +397,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </button>
         </div>
       </section>
+
+      {/* AdMob Banner Placement Preview */}
+      <AdMimicBanner placement="settings" />
 
       {/* Footer */}
       <div className="flex justify-center mt-2">

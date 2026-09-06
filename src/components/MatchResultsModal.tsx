@@ -4,6 +4,7 @@ import { RefreshCw, BarChart2, AlertCircle, Footprints, Droplets, Sparkles, Acti
 import confetti from 'canvas-confetti';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS, MindfulBenefit } from '../data/mindfulBenefits';
+import { AdMimicBanner } from './AdMimicBanner';
 
 interface MatchResultsModalProps {
   result: GameResult;
@@ -284,6 +285,9 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
             <BarChart2 className="w-4 h-4" />
             Steadiness Leaderboard
           </button>
+
+          {/* AdMob Banner Placement Preview */}
+          <AdMimicBanner placement="results" />
         </div>
       </div>
     </div>

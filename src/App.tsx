@@ -215,13 +215,21 @@ export default function App() {
           actually shrink/scroll without it (flex items default to
           min-height: auto, which fights overflow). */}
       <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col justify-start">
+        {/* mode="wait" holds <main> completely empty for the full exit
+            duration before mounting the next screen -- most noticeable
+            going from a finished round straight into the results screen,
+            where it read as a white flash. Each screen's own exit is set to
+            a much shorter duration below (independent of its 0.2s entrance
+            fade) so that gap is imperceptible, without switching away from
+            "wait" and risking two screens' content overlapping/stacking
+            mid-crossfade (none of these are absolutely positioned). */}
         <AnimatePresence mode="wait">
           {gameResult ? (
             <motion.div
               key="result"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.06 } }}
               transition={{ duration: 0.2 }}
               className="w-full flex-1 flex items-center justify-center"
             >
@@ -242,7 +250,7 @@ export default function App() {
               key={`play-${gameSessionKey}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.06 } }}
               transition={{ duration: 0.2 }}
               className="w-full flex-1 flex flex-col"
             >
@@ -262,7 +270,7 @@ export default function App() {
               key="instructions"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.06 } }}
               transition={{ duration: 0.2 }}
               className="w-full flex-1"
             >
@@ -277,7 +285,7 @@ export default function App() {
               key="leaderboard"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.06 } }}
               transition={{ duration: 0.2 }}
               className="w-full flex-1"
             >
@@ -295,7 +303,7 @@ export default function App() {
               key="settings"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.06 } }}
               transition={{ duration: 0.2 }}
               className="w-full flex-1"
             >

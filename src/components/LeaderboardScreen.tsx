@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { LeaderboardEntry, UserProfile, DifficultyLevel } from '../types';
 import { soundService } from '../services/audio';
 import { regionService, RegionInfo } from '../services/regionService';
+import { signInWithGoogle } from '../services/googleAuth';
+import { fetchGlobalLeaderboard, GlobalLeaderboardEntry } from '../services/firestore';
 import { AdMimicBanner } from './AdMimicBanner';
 import {
   Trophy,
@@ -13,6 +15,9 @@ import {
   Check,
   Crown,
   ChevronRight,
+  LogIn,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface LeaderboardScreenProps {
@@ -20,6 +25,7 @@ interface LeaderboardScreenProps {
   onPlayNow: () => void;
   soundEnabled: boolean;
   profile?: UserProfile;
+  onUpdateProfile?: (profile: UserProfile) => void;
 }
 
 type DifficultyFilter = 'all' | 'easy' | 'medium' | 'hard';
@@ -41,10 +47,14 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   onPlayNow,
   soundEnabled,
   profile,
+  onUpdateProfile,
 }) => {
   const [currentRegion, setCurrentRegion] = useState<RegionInfo>(regionService.getRegion());
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('all');
   const [copiedInvite, setCopiedInvite] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const [realPlayers, setRealPlayers] = useState<GlobalLeaderboardEntry[]>([]);
 
   // Subscribe to regionService updates (region picks which player name pool
   // to display, but is never shown in the UI itself) and refresh on mount.
@@ -57,6 +67,46 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
 
     return unsub;
   }, []);
+
+  // Fetch the real global leaderboard once signed in, refreshed whenever the
+  // difficulty filter changes. No-op for guests -- they never see this data.
+  useEffect(() => {
+    if (!profile?.isSignedIn) {
+      setRealPlayers([]);
+      return;
+    }
+    let cancelled = false;
+    fetchGlobalLeaderboard(difficulty).then((players) => {
+      if (!cancelled) setRealPlayers(players);
+    }).catch(() => {
+      if (!cancelled) setRealPlayers([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.isSignedIn, difficulty]);
+
+  const handleSignIn = async () => {
+    if (soundEnabled) soundService.playClick();
+    setSignInError(null);
+    setIsSigningIn(true);
+    try {
+      const googleUser = await signInWithGoogle();
+      onUpdateProfile?.({
+        ...(profile as UserProfile),
+        isSignedIn: true,
+        name: googleUser.name,
+        avatarUrl: googleUser.picture,
+        email: googleUser.email,
+        uid: googleUser.id,
+      });
+    } catch (err: unknown) {
+      const error = err as Error;
+      setSignInError(error.message || 'Sign-in could not be completed.');
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
 
   const userName = profile?.name || 'You';
   const userInitials = useMemo(() => {
@@ -96,6 +146,22 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
       deltaPB: p.deltaPB,
     }));
 
+    // Real signed-in players from Firestore, blended in alongside the
+    // simulated regional roster -- excluding the current user's own doc
+    // since their row is inserted separately below.
+    const realOtherPlayers: ExtendedLeaderboardItem[] = realPlayers
+      .filter((p) => p.uid !== profile?.uid)
+      .map((p) => ({
+        id: `real-${p.uid}`,
+        name: p.displayName,
+        initials: p.displayName.slice(0, 2).toUpperCase(),
+        score: p.score,
+        difficulty: p.difficulty,
+        streakDays: p.streak || undefined,
+        lastPlayed: 'Recently',
+        isUser: false,
+      }));
+
     // Insert user entry into ranking list
     const userEntry: ExtendedLeaderboardItem = {
       id: 'user-self',
@@ -109,9 +175,9 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
       deltaPB: '+1.8% PB',
     };
 
-    const combined = [...regionalPlayers, userEntry].sort((a, b) => b.score - a.score);
+    const combined = [...regionalPlayers, ...realOtherPlayers, userEntry].sort((a, b) => b.score - a.score);
     return combined;
-  }, [hasPlayed, currentRegion, entries, userName, userInitials, profile]);
+  }, [hasPlayed, currentRegion, realPlayers, entries, userName, userInitials, profile]);
 
   // Apply Difficulty filter (ALL / EASY / MED / HARD)
   const filteredEntries = useMemo(() => {
@@ -317,6 +383,42 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
           >
             <Play className="w-4 h-4 fill-current" />
             <span>Start Your First Run</span>
+          </button>
+        </main>
+      ) : !profile?.isSignedIn ? (
+        /* Sign-In Gate -- guests never see the leaderboard itself, only a
+           prompt to sign in once they've actually played a round. */
+        <main className="neu-raised rounded-3xl p-5 w-full flex flex-col items-center text-center relative overflow-hidden my-2 border border-white/5">
+          <div className="relative w-20 h-20 rounded-full neu-inset flex items-center justify-center border border-sky-400/20 shadow-inner my-2">
+            <LogIn className="w-8 h-8 text-[#9dcaff]" />
+          </div>
+
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight mt-1 mb-2">
+            Sign In to See the Leaderboard
+          </h2>
+          <p className="text-xs font-medium text-slate-400 leading-relaxed max-w-xs px-2 mb-5">
+            Your score is saved on this device. Sign in with Google to save it for good and see how
+            you compare against other players.
+          </p>
+
+          {signInError && (
+            <p className="text-[11px] text-rose-500 dark:text-rose-400 flex items-center gap-1 mb-3">
+              <AlertCircle className="w-3 h-3 shrink-0" />
+              {signInError}
+            </p>
+          )}
+
+          <button
+            onClick={handleSignIn}
+            disabled={isSigningIn}
+            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#207ecc] to-[#2F8FE0] hover:from-[#268de3] hover:to-[#389ef3] text-white font-bold text-sm tracking-wide shadow-[0_4px_18px_rgba(47,143,224,0.38)] flex items-center justify-center space-x-2.5 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {isSigningIn ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <LogIn className="w-4 h-4" />
+            )}
+            <span>{isSigningIn ? 'Signing in…' : 'Sign in with Google'}</span>
           </button>
         </main>
       ) : (

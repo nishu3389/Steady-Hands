@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { GameResult, UserProfile } from '../types';
-import { RefreshCw, BarChart2, AlertCircle, Footprints, Droplets, Sparkles, Activity, ShieldCheck, MessageCircle, Share2 } from 'lucide-react';
+import { RefreshCw, BarChart2, AlertCircle, Footprints, Droplets, Sparkles, Activity, ShieldCheck, MessageCircle, Share2, LogIn, Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS, MindfulBenefit } from '../data/mindfulBenefits';
 import { AdMimicBanner } from './AdMimicBanner';
 import { ShareExperienceModal } from './ShareExperienceModal';
+import { signInWithGoogle } from '../services/googleAuth';
 
 interface MatchResultsModalProps {
   result: GameResult;
@@ -13,6 +14,7 @@ interface MatchResultsModalProps {
   onOpenLeaderboard: () => void;
   soundEnabled: boolean;
   profile?: UserProfile;
+  onUpdateProfile?: (profile: UserProfile) => void;
 }
 
 export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
@@ -21,8 +23,33 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
   onOpenLeaderboard,
   soundEnabled,
   profile,
+  onUpdateProfile,
 }) => {
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
+
+  const handleSignIn = async () => {
+    if (soundEnabled) soundService.playClick();
+    setSignInError(null);
+    setIsSigningIn(true);
+    try {
+      const googleUser = await signInWithGoogle();
+      onUpdateProfile?.({
+        ...(profile as UserProfile),
+        isSignedIn: true,
+        name: googleUser.name,
+        avatarUrl: googleUser.picture,
+        email: googleUser.email,
+        uid: googleUser.id,
+      });
+    } catch (err: unknown) {
+      const error = err as Error;
+      setSignInError(error.message || 'Sign-in could not be completed.');
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
   // Randomly select one mindful benefit upon mount
   const [randomBenefit] = useState<MindfulBenefit>(() => {
     const randomIndex = Math.floor(Math.random() * MINDFUL_BENEFITS.length);
@@ -265,6 +292,45 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
             {randomBenefit.description}
           </p>
         </div>
+
+        {/* Sign-In Prompt -- save this score & compete on the real leaderboard */}
+        {!profile?.isSignedIn && (
+          <div className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-[#005f9e]/10 to-[#9dcaff]/10 border border-[#005f9e]/25 dark:border-[#9dcaff]/25 flex flex-col gap-2.5 text-left">
+            <div className="flex items-start gap-2.5">
+              <div className="p-1.5 rounded-lg bg-white dark:bg-[#1e3448] shrink-0 shadow-sm">
+                <LogIn className="w-3.5 h-3.5 text-[#005f9e] dark:text-[#9dcaff]" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-[#191c1e] dark:text-[#eff1f4]">
+                  Save your score & see your rank
+                </span>
+                <p className="text-[11px] text-[#525a66] dark:text-[#a0a8b4] leading-relaxed mt-0.5">
+                  Sign in with Google to keep this score and compete against other players on the leaderboard.
+                </p>
+              </div>
+            </div>
+
+            {signInError && (
+              <p className="text-[11px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" />
+                {signInError}
+              </p>
+            )}
+
+            <button
+              onClick={handleSignIn}
+              disabled={isSigningIn}
+              className="w-full py-2.5 rounded-xl bg-[#005f9e] hover:bg-[#0078c6] active:scale-98 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isSigningIn ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <LogIn className="w-3.5 h-3.5" />
+              )}
+              <span>{isSigningIn ? 'Signing in…' : 'Sign in with Google'}</span>
+            </button>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col w-full gap-2 mt-0.5">

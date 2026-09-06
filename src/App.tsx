@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GameResult, GameSettings, LeaderboardEntry, NavigationTab, UserProfile } from './types';
 import { storageService } from './services/storage';
 import { regionService } from './services/regionService';
+import { submitScore } from './services/firestore';
 import { BottomNav } from './components/BottomNav';
 import { PlayScreen } from './components/PlayScreen';
 import { InstructionsScreen } from './components/InstructionsScreen';
@@ -131,6 +132,24 @@ export default function App() {
         waterRemaining: result.waterRemaining,
       });
       setLeaderboard(storageService.getLeaderboard());
+
+      // Submit to the global leaderboard -- only for signed-in players, and
+      // only the app itself does this right when a round finishes (never a
+      // user-editable action). Best-effort: the local save above already
+      // happened regardless of network/Firestore availability.
+      if (profile.isSignedIn && profile.uid) {
+        submitScore({
+          uid: profile.uid,
+          displayName: profile.name,
+          photoUrl: profile.avatarUrl,
+          countryCode: regionService.getRegion().code,
+          difficulty: result.difficulty,
+          score: result.finalScore,
+          streak: updatedStreak,
+        }).catch(() => {
+          // Ignore -- the player's progress is already saved locally.
+        });
+      }
     }
   };
 
@@ -172,6 +191,7 @@ export default function App() {
               <MatchResultsModal
                 result={gameResult}
                 profile={profile}
+                onUpdateProfile={handleUpdateProfile}
                 onTryAgain={() => setGameResult(null)}
                 onOpenLeaderboard={() => {
                   setGameResult(null);
@@ -229,6 +249,7 @@ export default function App() {
                 onPlayNow={() => setActiveTab('play')}
                 soundEnabled={settings.soundEnabled}
                 profile={profile}
+                onUpdateProfile={handleUpdateProfile}
               />
             </motion.div>
           ) : (

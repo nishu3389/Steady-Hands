@@ -116,6 +116,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         name: 'Guest Player',
         avatarUrl: '',
         email: undefined,
+        uid: undefined,
       });
       setNameInput('Guest Player');
       return;
@@ -131,6 +132,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         name: googleUser.name,
         avatarUrl: googleUser.picture,
         email: googleUser.email,
+        uid: googleUser.id,
       });
       setNameInput(googleUser.name);
     } catch (err: unknown) {

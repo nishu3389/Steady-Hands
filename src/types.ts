@@ -26,6 +26,8 @@ export interface UserProfile {
   streak: number;
   lastPlayedDate: string;
   email?: string;
+  // Firebase Auth uid -- also the leaderboard/{uid} Firestore document id.
+  uid?: string;
 }
 
 export interface GameSettings {

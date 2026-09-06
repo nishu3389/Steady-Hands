@@ -16,13 +16,11 @@
 			"backgroundColor": "#f7f9fc",
 			"showSpinner": false
 		},
-		"GoogleAuth": {
-			"scopes": [
-				"profile",
-				"email"
-			],
-			"serverClientId": "",
-			"forceCodeForRefreshToken": false
+		"FirebaseAuthentication": {
+			"skipNativeAuth": false,
+			"providers": [
+				"google.com"
+			]
 		},
 		"AdMob": {
 			"appId": "ca-app-pub-4833668827116420~3753425596",

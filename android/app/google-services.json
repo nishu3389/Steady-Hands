@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "235232628807",
+    "project_id": "steadyhands-5cf12",
+    "storage_bucket": "steadyhands-5cf12.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:235232628807:android:53069bab611971ba1e6162",
+        "android_client_info": {
+          "package_name": "com.steadyhands.balance"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "235232628807-eda9mts64bdqm0eao9vfrd8qu2h8dg1t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.steadyhands.balance",
+            "certificate_hash": "2c4624010b6660bc94feb4ed3c3c693fd522d543"
+          }
+        },
+        {
+          "client_id": "235232628807-3fcf475j8heoghh6lvg2qevj7ejo3ot4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyF3TwVo-o2kNj1j7TfooaYdVtF54V6XE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "235232628807-3fcf475j8heoghh6lvg2qevj7ejo3ot4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -280,7 +280,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
             </div>
           </div>
 
-          <h2 className="text-xl font-bold text-white tracking-tight mt-1 mb-2">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight mt-1 mb-2">
             No Runs Recorded Yet
           </h2>
           <p className="text-xs font-medium text-slate-400 leading-relaxed max-w-xs px-2 mb-4">
@@ -294,7 +294,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
               <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                 Community Avg
               </span>
-              <span className="text-base font-extrabold text-white">
+              <span className="text-base font-extrabold text-slate-800 dark:text-white">
                 {currentRegion.communityAvg.toFixed(1)}
                 <span className="text-xs text-sky-400 font-semibold">%</span>
               </span>

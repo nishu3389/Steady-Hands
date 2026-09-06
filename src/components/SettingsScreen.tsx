@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { soundService } from '../services/audio';
 import { walkingDetector } from '../services/walkingDetector';
-import { signInWithGoogle, signOutFromGoogle, isGoogleAuthConfigured } from '../services/googleAuth';
+import { signInWithGoogle, signOutFromGoogle } from '../services/googleAuth';
 import { AdMimicBanner } from './AdMimicBanner';
 
 interface SettingsScreenProps {
@@ -106,7 +106,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     // If currently signed in, sign out
     if (profile.isSignedIn) {
       try {
-        await signOutFromGoogle(profile.email);
+        await signOutFromGoogle();
       } catch {
         // Ignore sign-out cleanup errors
       }

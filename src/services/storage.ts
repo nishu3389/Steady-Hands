@@ -8,7 +8,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_SETTINGS: GameSettings = {
-  theme: 'dark',
+  theme: 'light',
   soundEnabled: true,
   vibrationEnabled: true,
   sensitivity: 1.0,

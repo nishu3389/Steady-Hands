@@ -13,6 +13,10 @@ import {
   Loader2,
   AlertCircle,
   X,
+  Sun,
+  Moon,
+  Laptop,
+  Vibrate,
 } from 'lucide-react';
 import { soundService } from '../services/audio';
 import { walkingDetector } from '../services/walkingDetector';
@@ -75,6 +79,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     const nextSound = !settings.soundEnabled;
     if (nextSound) soundService.playClick();
     onUpdateSettings({ ...settings, soundEnabled: nextSound });
+  };
+
+  const handleVibrationToggle = () => {
+    const nextVib = !settings.vibrationEnabled;
+    if (settings.soundEnabled) soundService.playClick();
+    if (nextVib && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(30);
+      } catch {
+        // Ignore
+      }
+    }
+    onUpdateSettings({ ...settings, vibrationEnabled: nextVib });
   };
 
   const handleSensitivityChange = (val: number) => {
@@ -164,33 +181,131 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </div>
       </section>
 
-      {/* Audio Section */}
+      {/* Appearance Section (Day / Night Theme Selection) */}
       <section className="flex flex-col gap-2">
-        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Audio</h2>
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised border border-white/60 dark:border-transparent">
-          <div className="flex items-center gap-3 text-[#191c1e] dark:text-[#eff1f4]">
-            {settings.soundEnabled ? (
-              <Volume2 className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
-            ) : (
-              <VolumeX className="w-5 h-5 text-[#707882]" />
-            )}
-            <span className="font-medium text-base">Sound Effects</span>
+        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Appearance</h2>
+        <div className="p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised flex flex-col gap-3.5 border border-white/60 dark:border-transparent">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-[#191c1e] dark:text-[#eff1f4]">
+              {settings.theme === 'dark' ? (
+                <Moon className="w-5 h-5 text-indigo-400" />
+              ) : settings.theme === 'light' ? (
+                <Sun className="w-5 h-5 text-amber-500" />
+              ) : (
+                <Laptop className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
+              )}
+              <div className="flex flex-col">
+                <span className="font-medium text-base">Theme Mode</span>
+                <span className="text-xs text-[#707882] dark:text-[#a0a8b4]">
+                  {settings.theme === 'light'
+                    ? 'Day Mode (Light)'
+                    : settings.theme === 'dark'
+                    ? 'Night Mode (Dark)'
+                    : 'System Default'}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Neumorphic Toggle Switch */}
-          <button
-            onClick={handleSoundToggle}
-            className="relative w-14 h-8 bg-[#e0e3e6] dark:bg-[#050B10] rounded-full transition-colors duration-300 focus:outline-none p-1 neumorphic-inset"
-            aria-label="Toggle Sound Effects"
-          >
-            <div
-              className={`w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${
-                settings.soundEnabled
-                  ? 'translate-x-6 bg-[#005f9e] dark:bg-[#0078c6]'
-                  : 'translate-x-0 bg-[#707882]'
+          {/* Segmented Day / Night / System Controls */}
+          <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-xl p-1.5 neumorphic-inset flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleThemeChange('light')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+                settings.theme === 'light'
+                  ? 'bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-sm font-extrabold'
+                  : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e]'
               }`}
-            />
-          </button>
+            >
+              <Sun className="w-4 h-4 text-amber-500" />
+              <span>Day</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleThemeChange('dark')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+                settings.theme === 'dark'
+                  ? 'bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-sm font-extrabold'
+                  : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e]'
+              }`}
+            >
+              <Moon className="w-4 h-4 text-indigo-400" />
+              <span>Night</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleThemeChange('system')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+                settings.theme === 'system'
+                  ? 'bg-white dark:bg-[#191c1e] text-[#005f9e] dark:text-[#9dcaff] shadow-sm font-extrabold'
+                  : 'text-[#404751] dark:text-[#c0c7d3] hover:text-[#005f9e]'
+              }`}
+            >
+              <Laptop className="w-4 h-4 text-[#005f9e] dark:text-[#9dcaff]" />
+              <span>Auto</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Audio & Feedback Section */}
+      <section className="flex flex-col gap-2">
+        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">Audio & Haptics</h2>
+        <div className="flex flex-col gap-3 p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised border border-white/60 dark:border-transparent">
+          {/* Sound Effects */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-[#191c1e] dark:text-[#eff1f4]">
+              {settings.soundEnabled ? (
+                <Volume2 className="w-5 h-5 text-[#005f9e] dark:text-[#9dcaff]" />
+              ) : (
+                <VolumeX className="w-5 h-5 text-[#707882]" />
+              )}
+              <span className="font-medium text-base">Sound Effects</span>
+            </div>
+
+            {/* Neumorphic Toggle Switch */}
+            <button
+              onClick={handleSoundToggle}
+              className="relative w-14 h-8 bg-[#e0e3e6] dark:bg-[#050B10] rounded-full transition-colors duration-300 focus:outline-none p-1 neumorphic-inset cursor-pointer"
+              aria-label="Toggle Sound Effects"
+            >
+              <div
+                className={`w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${
+                  settings.soundEnabled
+                    ? 'translate-x-6 bg-[#005f9e] dark:bg-[#0078c6]'
+                    : 'translate-x-0 bg-[#707882]'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="w-full h-px bg-black/5 dark:bg-white/5" />
+
+          {/* Haptic Vibration */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-[#191c1e] dark:text-[#eff1f4]">
+              <Vibrate className={`w-5 h-5 ${settings.vibrationEnabled !== false ? 'text-[#005f9e] dark:text-[#9dcaff]' : 'text-[#707882]'}`} />
+              <span className="font-medium text-base">Haptic Vibration</span>
+            </div>
+
+            <button
+              onClick={handleVibrationToggle}
+              className="relative w-14 h-8 bg-[#e0e3e6] dark:bg-[#050B10] rounded-full transition-colors duration-300 focus:outline-none p-1 neumorphic-inset cursor-pointer"
+              aria-label="Toggle Haptic Vibration"
+            >
+              <div
+                className={`w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${
+                  settings.vibrationEnabled !== false
+                    ? 'translate-x-6 bg-[#005f9e] dark:bg-[#0078c6]'
+                    : 'translate-x-0 bg-[#707882]'
+                }`}
+              />
+            </button>
+          </div>
         </div>
       </section>
 

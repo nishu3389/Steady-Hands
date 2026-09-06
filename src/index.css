@@ -39,46 +39,255 @@
   }
 }
 
-/* Neumorphic Shadows - Light (Pure White Cards on Soft Slate Canvas) */
+/* Neumorphic Shadows - Light (Soft Slate Canvas #f0f4f8 with crisp highlights) */
 .neumorphic-raised {
+  background: #f0f4f8;
   box-shadow: -6px -6px 14px #FFFFFF, 6px 6px 16px rgba(163, 177, 198, 0.5), 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .neumorphic-inset {
+  background: #e8edf4;
   box-shadow: inset -5px -5px 10px #FFFFFF, inset 5px 5px 10px rgba(163, 177, 198, 0.45);
 }
 
 .neumorphic-raised-sm {
+  background: #f0f4f8;
   box-shadow: -3px -3px 8px #FFFFFF, 3px 3px 8px rgba(163, 177, 198, 0.4);
 }
 
 .neumorphic-inset-sm {
+  background: #e8edf4;
   box-shadow: inset -3px -3px 6px #FFFFFF, inset 3px 3px 6px rgba(163, 177, 198, 0.35);
 }
 
 /* Card Elevated Shadow (matching design spec) */
 .card-raised {
-  box-shadow: 0 10px 25px -5px rgba(50, 65, 85, 0.07), 0 4px 10px -2px rgba(50, 65, 85, 0.04), -4px -4px 12px #FFFFFF;
+  background: #ffffff;
+  box-shadow: 6px 6px 14px rgba(163, 177, 198, 0.35), -6px -6px 14px rgba(255, 255, 255, 0.95);
 }
 
-/* Neumorphic Shadows - Dark Mode */
+/* Rank / Neumorphic Component Styles - Light Default */
+.neu-surface {
+  background: #f0f4f8;
+  box-shadow: 6px 6px 14px rgba(163, 177, 198, 0.4), -6px -6px 14px rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.neu-surface-raised {
+  background: #eef3f8;
+  box-shadow: 14px 14px 28px rgba(163, 177, 198, 0.45), -14px -14px 28px #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+.neu-flat {
+  background: #f0f4f8;
+  box-shadow: 5px 5px 12px rgba(163, 177, 198, 0.4), -5px -5px 12px rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.neu-card {
+  background: #f0f4f8;
+  box-shadow: 5px 6px 12px rgba(163, 177, 198, 0.35), -4px -4px 10px rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.neu-card-podium {
+  background: linear-gradient(160deg, #f7f9fc 0%, #edf2f8 100%);
+  box-shadow: 7px 8px 18px rgba(166, 180, 200, 0.45), -6px -6px 15px rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+.neu-inset {
+  background: #e8edf4;
+  box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.45), inset -4px -4px 8px rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.neu-btn-active {
+  background: #e6eef7;
+  box-shadow: inset 2.5px 2.5px 6px rgba(160, 175, 196, 0.5), inset -2.5px -2.5px 6px rgba(255, 255, 255, 0.95), 0 1px 3px rgba(0, 95, 158, 0.12);
+  border: 1px solid rgba(0, 95, 158, 0.35);
+}
+
+.neu-active-glow {
+  background: #e4eef8;
+  box-shadow: inset 3px 3px 6px rgba(163, 177, 198, 0.45), inset -3px -3px 6px #ffffff, 0 0 12px rgba(47, 143, 224, 0.25);
+  border: 1px solid rgba(47, 143, 224, 0.5);
+  color: #005f9e;
+}
+
+.neu-nav-pressed, .neu-nav-active {
+  background: #e8f0f8;
+  box-shadow: inset 3px 3px 6px rgba(163, 177, 198, 0.45), inset -3px -3px 6px rgba(255, 255, 255, 0.95), 0 2px 8px rgba(47, 143, 224, 0.15);
+  border-radius: 18px;
+  color: #2f8fe0;
+}
+
+.neu-segmented-container {
+  background: #e8eef6;
+  box-shadow: inset 3px 3px 6px #cad3e0, inset -3px -3px 6px #ffffff;
+}
+
+.neu-segment-active {
+  background: #f0f4f8;
+  box-shadow: 3px 3px 7px #cad4e2, -2px -2px 6px #ffffff;
+}
+
+.neu-pill-hud {
+  background: #edf1f7;
+  box-shadow: 4px 5px 12px rgba(166, 180, 200, 0.5), -4px -5px 12px rgba(255, 255, 255, 0.9);
+}
+
+.neu-step-card {
+  background: #edf2f7;
+  box-shadow: 5px 5px 12px rgba(166, 180, 200, 0.4), -5px -5px 12px #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+/* Dial Center Play Button (Light Mode) */
+.dial-outer-rim {
+  background: #f0f4f8;
+  box-shadow: -10px -10px 22px rgba(255, 255, 255, 0.95), 10px 10px 24px rgba(163, 177, 198, 0.45);
+}
+
+.dial-inner-groove {
+  background: #edf2f7;
+  box-shadow: inset 6px 6px 12px rgba(163, 177, 198, 0.4), inset -6px -6px 12px rgba(255, 255, 255, 0.95);
+}
+
+.dial-core-btn {
+  background: #f0f4f8;
+  box-shadow: -5px -5px 14px rgba(255, 255, 255, 0.95), 5px 5px 14px rgba(163, 177, 198, 0.4);
+}
+
+.dial-play-icon {
+  background: #f0f4f8;
+  box-shadow: -2px -2px 6px rgba(255, 255, 255, 0.9), 2px 2px 6px rgba(163, 177, 198, 0.35);
+  color: #2f8fe0;
+}
+
+/* Neumorphic Shadows - Dark Mode Overrides */
 .dark .card-raised {
+  background: #191c1e;
   box-shadow: -8px -8px 16px #162B3B, 8px 8px 16px #050B10;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dark .neu-surface {
+  background: #191d21;
+  box-shadow: -8px -8px 16px #162B3B, 8px 8px 16px #050B10;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dark .neu-surface-raised {
+  background: #191c1e;
+  box-shadow: 14px 14px 28px #080d13, -14px -14px 28px #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dark .neu-flat {
+  background: #191d21;
+  box-shadow: 6px 6px 14px #0d0f11, -5px -5px 12px #252b31;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.dark .neu-card {
+  background: #191d21;
+  box-shadow: 5px 6px 12px #0d0f11, -4px -4px 10px #242930;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.dark .neu-card-podium {
+  background: linear-gradient(145deg, #1b2025, #16191c);
+  box-shadow: 6px 8px 16px #0b0d0e, -4px -4px 10px #23282f;
+  border: 1px solid rgba(56, 189, 248, 0.08);
+}
+
+.dark .neu-inset {
+  background: #131618;
+  box-shadow: inset 4px 4px 8px #0b0d0e, inset -3px -3px 6px #1f2429;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.dark .neu-btn-active {
+  background: #15181b;
+  box-shadow: inset 3px 3px 6px #0c0e0f, inset -2px -2px 5px #20262c;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.dark .neu-active-glow {
+  background: #171d24;
+  box-shadow: inset 3px 3px 6px #0c1015, inset -2px -2px 5px #222a33, 0 0 14px rgba(47, 143, 224, 0.28);
+  border: 1px solid rgba(47, 143, 224, 0.4);
+  color: #9dcaff;
+}
+
+.dark .neu-nav-pressed, .dark .neu-nav-active {
+  background: #152331;
+  box-shadow: inset 3px 3px 6px #0c1015, inset -2px -2px 5px #222a33, 0 2px 8px rgba(56, 189, 248, 0.2);
+  border-radius: 18px;
+  color: #38bdf8;
+}
+
+.dark .neu-segmented-container {
+  background: #131618;
+  box-shadow: inset 3px 3px 6px #0a0c0e, inset -2px -2px 5px #1f2429;
+}
+
+.dark .neu-segment-active {
+  background: #252b31;
+  box-shadow: 2px 2px 5px #0d0f11, -2px -2px 5px #323a42;
+}
+
+.dark .neu-pill-hud {
+  background: #191c1e;
+  box-shadow: 4px 5px 12px #0a0c0e, -4px -5px 12px #262c33;
+}
+
+.dark .neu-step-card {
+  background: #191c1e;
+  box-shadow: 5px 5px 12px #0a0c0e, -5px -5px 12px #262c33;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dark .dial-outer-rim {
+  background: #191d21;
+  box-shadow: -8px -8px 18px #252b31, 8px 8px 18px #0d0f11;
+}
+
+.dark .dial-inner-groove {
+  background: #131618;
+  box-shadow: inset 6px 6px 12px #0a0c0e, inset -5px -5px 10px #1f2429;
+}
+
+.dark .dial-core-btn {
+  background: #191d21;
+  box-shadow: -5px -5px 12px #252b31, 5px 5px 12px #0d0f11;
+}
+
+.dark .dial-play-icon {
+  background: #152331;
+  box-shadow: -2px -2px 6px #202e3c, 2px 2px 6px #0b141d;
+  color: #38bdf8;
 }
 
 .dark .neumorphic-raised {
+  background: #191c1e;
   box-shadow: -8px -8px 16px #162B3B, 8px 8px 16px #050B10;
 }
 
 .dark .neumorphic-inset {
+  background: #131618;
   box-shadow: inset -8px -8px 16px #162B3B, inset 8px 8px 16px #050B10;
 }
 
 .dark .neumorphic-raised-sm {
+  background: #191c1e;
   box-shadow: -4px -4px 8px #162B3B, 4px 4px 8px #050B10;
 }
 
 .dark .neumorphic-inset-sm {
+  background: #131618;
   box-shadow: inset -4px -4px 8px #162B3B, inset 4px 4px 8px #050B10;
 }
 
@@ -174,61 +383,23 @@
   animation: countdown-ripple 0.85s ease-out both;
 }
 
-/* Rank Screen Neumorphic Styles */
-.neu-flat {
-  background: #191d21;
-  box-shadow: 6px 6px 14px #0d0f11, -5px -5px 12px #252b31;
-}
-
-.neu-card {
-  background: #191d21;
-  box-shadow: 5px 6px 12px #0d0f11, -4px -4px 10px #242930;
-  border: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-.neu-card-podium {
-  background: linear-gradient(145deg, #1b2025, #16191c);
-  box-shadow: 6px 8px 16px #0b0d0e, -4px -4px 10px #23282f;
-  border: 1px solid rgba(56, 189, 248, 0.08);
-}
-
-.neu-inset {
-  background: #131618;
-  box-shadow: inset 4px 4px 8px #0b0d0e, inset -3px -3px 6px #1f2429;
-}
-
-.neu-btn-active {
-  background: #15181b;
-  box-shadow: inset 3px 3px 6px #0c0e0f, inset -2px -2px 5px #20262c;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-}
-
-.neu-active-glow {
-  background: #171d24;
-  box-shadow: inset 3px 3px 6px #0c1015, inset -2px -2px 5px #222a33, 0 0 14px rgba(47, 143, 224, 0.28);
-  border: 1px solid rgba(47, 143, 224, 0.4);
-}
-
-@keyframes pulseRing {
-  0% {
-    transform: scale(0.92);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.15);
-    opacity: 0.25;
-  }
-  100% {
-    transform: scale(0.92);
-    opacity: 0.8;
-  }
-}
-
 .ripple-ring-1 {
   animation: pulseRing 4s ease-in-out infinite;
 }
 
 .ripple-ring-2 {
   animation: pulseRing 4s ease-in-out 1.2s infinite;
+}
+
+.neu-raised {
+  background: #f0f4f8;
+  box-shadow: 6px 6px 16px rgba(163, 177, 198, 0.45), -6px -6px 16px #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.dark .neu-raised {
+  background: #191d21;
+  box-shadow: 6px 6px 16px #080d13, -6px -6px 16px #222933;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 

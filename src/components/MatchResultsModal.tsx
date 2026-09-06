@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { GameResult } from '../types';
-import { RefreshCw, BarChart2, AlertCircle, Footprints, Droplets, Sparkles, Activity, ShieldCheck } from 'lucide-react';
+import { GameResult, UserProfile } from '../types';
+import { RefreshCw, BarChart2, AlertCircle, Footprints, Droplets, Sparkles, Activity, ShieldCheck, MessageCircle, Share2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS, MindfulBenefit } from '../data/mindfulBenefits';
 import { AdMimicBanner } from './AdMimicBanner';
+import { ShareExperienceModal } from './ShareExperienceModal';
 
 interface MatchResultsModalProps {
   result: GameResult;
   onTryAgain: () => void;
   onOpenLeaderboard: () => void;
   soundEnabled: boolean;
+  profile?: UserProfile;
 }
 
 export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
@@ -18,7 +20,9 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
   onTryAgain,
   onOpenLeaderboard,
   soundEnabled,
+  profile,
 }) => {
+  const [showShareModal, setShowShareModal] = useState(false);
   // Randomly select one mindful benefit upon mount
   const [randomBenefit] = useState<MindfulBenefit>(() => {
     const randomIndex = Math.floor(Math.random() * MINDFUL_BENEFITS.length);
@@ -264,14 +268,26 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-col w-full gap-2 mt-0.5">
+          {/* Share with Friends (WhatsApp) Highlight Action */}
+          <button
+            onClick={() => {
+              if (soundEnabled) soundService.playClick();
+              setShowShareModal(true);
+            }}
+            className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#25D366] via-[#1ea352] to-[#128C7E] hover:from-[#29df6d] hover:to-[#169f8f] active:scale-98 text-white font-black text-sm shadow-[0_4px_18px_rgba(37,211,102,0.35)] transition-all flex items-center justify-center gap-2.5 cursor-pointer border border-emerald-300/30"
+          >
+            <MessageCircle className="w-5 h-5 fill-current" />
+            <span>Share with Friends (WhatsApp)</span>
+          </button>
+
           <button
             onClick={() => {
               if (soundEnabled) soundService.playClick();
               onTryAgain();
             }}
-            className="w-full py-3.5 rounded-2xl bg-[#005f9e] hover:bg-[#0078c6] active:scale-98 text-white font-bold text-base shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3 rounded-2xl bg-[#005f9e] hover:bg-[#0078c6] active:scale-98 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className="w-4 h-4" />
             Walk Again
           </button>
 
@@ -290,6 +306,15 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
           <AdMimicBanner placement="results" />
         </div>
       </div>
+
+      {/* Share Experience Screen with Animated Making UI & Automatic WhatsApp */}
+      <ShareExperienceModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        result={result}
+        profile={profile}
+        soundEnabled={soundEnabled}
+      />
     </div>
   );
 };

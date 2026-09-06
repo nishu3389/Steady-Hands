@@ -5,7 +5,6 @@ import { regionService, RegionInfo } from '../services/regionService';
 import { AdMimicBanner } from './AdMimicBanner';
 import {
   Trophy,
-  MapPin,
   Flame,
   Target,
   UserPlus,
@@ -14,7 +13,6 @@ import {
   Check,
   Crown,
   ChevronRight,
-  Radio,
 } from 'lucide-react';
 
 interface LeaderboardScreenProps {
@@ -47,40 +45,15 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   const [currentRegion, setCurrentRegion] = useState<RegionInfo>(regionService.getRegion());
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('all');
   const [copiedInvite, setCopiedInvite] = useState(false);
-  const [coordsString, setCoordsString] = useState<string | null>(() => {
-    const saved = regionService.getSavedLocation();
-    if (saved) return saved.coordsFormatted;
-    const coords = regionService.getCachedCoords();
-    return coords ? `${coords.lat.toFixed(2)}°, ${coords.lon.toFixed(2)}°` : null;
-  });
 
-  // Subscribe to regionService updates driven by location
+  // Subscribe to regionService updates (region picks which player name pool
+  // to display, but is never shown in the UI itself) and refresh on mount.
   useEffect(() => {
     const unsub = regionService.subscribe((newReg) => {
       setCurrentRegion(newReg);
-      const saved = regionService.getSavedLocation();
-      if (saved) {
-        setCoordsString(saved.coordsFormatted);
-      } else {
-        const coords = regionService.getCachedCoords();
-        if (coords) {
-          setCoordsString(`${coords.lat.toFixed(2)}°, ${coords.lon.toFixed(2)}°`);
-        }
-      }
     });
 
-    // Ensure location is fetched & saved
-    regionService.fetchAndSaveLocation().then(() => {
-      const saved = regionService.getSavedLocation();
-      if (saved) {
-        setCoordsString(saved.coordsFormatted);
-      } else {
-        const coords = regionService.getCachedCoords();
-        if (coords) {
-          setCoordsString(`${coords.lat.toFixed(2)}°, ${coords.lon.toFixed(2)}°`);
-        }
-      }
-    });
+    regionService.fetchAndSaveLocation();
 
     return unsub;
   }, []);
@@ -150,8 +123,8 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   const handleInvite = async () => {
     if (soundEnabled) soundService.playClick();
     const shareData = {
-      title: `Steady Hands — ${currentRegion.name} Leaderboard`,
-      text: `Check out my steadiness ranking in ${currentRegion.name}! Can you balance the water bowl better?`,
+      title: 'Steady Hands — Leaderboard',
+      text: 'Check out my steadiness ranking! Can you balance the water bowl better?',
       url: window.location.origin,
     };
 
@@ -166,7 +139,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
 
     try {
       await navigator.clipboard.writeText(
-        `Compare your steady hands score with walkers in ${currentRegion.name}! ${window.location.origin}`
+        `Compare your steady hands score with other walkers! ${window.location.origin}`
       );
       setCopiedInvite(true);
       setTimeout(() => setCopiedInvite(false), 2500);
@@ -228,43 +201,12 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
           </div>
         </div>
 
-        {/* Region & Network GPS Detection Bar (Replaces old scope and timeframe filters) */}
-        <div className="neu-card rounded-2xl p-3 border border-black/5 dark:border-white/[0.05] flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="text-2xl shrink-0" role="img" aria-label={currentRegion.name}>
-              {currentRegion.flag}
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-black text-slate-800 dark:text-white tracking-tight truncate">
-                  {currentRegion.name}
-                </span>
-                <span className="text-[9px] font-bold uppercase tracking-wider bg-sky-500/15 text-sky-600 dark:text-sky-300 border border-sky-500/30 px-1.5 py-0.5 rounded-md flex items-center gap-1">
-                  <Radio className="w-2.5 h-2.5 text-sky-500 dark:text-sky-400 animate-pulse" />
-                  {coordsString ? 'GPS Cell' : 'Network'}
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">
-                {coordsString
-                  ? `Lat/Long: ${coordsString} · Top Walkers`
-                  : `${currentRegion.subtext} · Top Walkers`}
-              </p>
-            </div>
-          </div>
-
-          {/* Automatic Location Synced Badge (Region button click removed) */}
-          <div className="neu-inset px-2.5 py-1.5 rounded-xl text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-inner flex items-center gap-1 shrink-0 select-none">
-            <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>Local Rank</span>
-          </div>
-        </div>
-
-        {/* Region Active Presence Pill & Reset Timer */}
+        {/* Active Presence Pill & Reset Timer */}
         <div className="flex items-center justify-between px-0.5">
           <div className="neu-flat px-3 py-1 rounded-xl flex items-center gap-1.5 border border-black/5 dark:border-white/[0.03]">
             <span className="text-xs">👥</span>
             <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 tracking-tight">
-              {currentRegion.activeWalkers.toLocaleString()} Walkers Active in {currentRegion.name}
+              {currentRegion.activeWalkers.toLocaleString()} Walkers Active
             </span>
           </div>
 
@@ -328,18 +270,18 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
           </div>
 
           <h2 className="text-xl font-bold text-white tracking-tight mt-1 mb-2">
-            No Runs Recorded in {currentRegion.name}
+            No Runs Recorded Yet
           </h2>
           <p className="text-xs font-medium text-slate-400 leading-relaxed max-w-xs px-2 mb-4">
             Complete your first mindful walking session to calibrate your{' '}
             <span className="text-sky-300 font-semibold">Body Steadiness Index</span> and establish
-            your rank in {currentRegion.name}.
+            your rank.
           </p>
 
           <div className="neu-inset w-full rounded-2xl p-3.5 mb-5 flex justify-around items-center border border-white/5">
             <div className="text-left px-2">
               <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                {currentRegion.name} Avg
+                Community Avg
               </span>
               <span className="text-base font-extrabold text-white">
                 {currentRegion.communityAvg.toFixed(1)}
@@ -375,18 +317,6 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
               aria-label="Top 3 Podium"
               className="neu-card-podium rounded-3xl p-4 border border-white/[0.05]"
             >
-              <div className="flex items-center justify-between pb-3 mb-2 border-b border-black/5 dark:border-white/[0.05]">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-base">{currentRegion.flag}</span>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-slate-700 dark:text-slate-300">
-                    {currentRegion.name} Podium
-                  </span>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                  Top 0.1% Focus
-                </span>
-              </div>
-
               <div className="flex items-end justify-between gap-2 pt-2">
                 {/* #2 Place (Left) */}
                 {podium[1] ? (
@@ -463,7 +393,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                     <div className="w-full h-24 bg-gradient-to-b from-slate-200 to-slate-100 dark:from-[#21262d] dark:to-[#161a1d] rounded-t-xl mt-3 flex flex-col items-center justify-center border-t-2 border-amber-400/50 shadow-inner">
                       <span className="text-xs font-black text-amber-600 dark:text-amber-300">1st</span>
                       <span className="text-[9px] text-slate-600 dark:text-slate-400 uppercase tracking-wider font-bold">
-                        {currentRegion.name.toUpperCase()} LEADER
+                        LEADER
                       </span>
                     </div>
                   </div>
@@ -530,7 +460,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Recorded in {currentRegion.name} ({difficulty === 'all' ? 'Hard' : difficulty.toUpperCase()} Mode)
+                  {difficulty === 'all' ? 'Hard' : difficulty.toUpperCase()} Mode
                 </p>
 
                 <div className="mt-2.5 pt-2 border-t border-black/5 dark:border-white/[0.04] flex items-center justify-between text-[11px]">
@@ -539,7 +469,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                     <strong className="text-sky-600 dark:text-sky-300">
                       {(Math.max(0.1, (podium[0]?.score || 98.7) - (podium[1]?.score || 97.4))).toFixed(1)}% behind
                     </strong>{' '}
-                    {podium[0]?.name || 'Leader'} for #1 in {currentRegion.name}!
+                    {podium[0]?.name || 'Leader'} for #1!
                   </span>
 
                   <button
@@ -556,10 +486,10 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
 
           {/* Next Contenders List (Ranks 4+) */}
           {contenders.length > 0 && (
-            <section aria-label="Regional Contenders" className="space-y-2.5">
+            <section aria-label="Contenders" className="space-y-2.5">
               <div className="flex justify-between items-center px-1">
                 <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                  {currentRegion.name} Contenders
+                  Contenders
                 </h2>
                 <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Steadiness Score</span>
               </div>
@@ -631,9 +561,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                 )}
               </div>
               <span className="text-xs font-bold tracking-wide text-sky-600 dark:text-sky-300">
-                {copiedInvite
-                  ? 'Invite Link Copied!'
-                  : `Invite Friends to ${currentRegion.name} Standings`}
+                {copiedInvite ? 'Invite Link Copied!' : 'Invite Friends to Compete'}
               </span>
             </button>
           </section>

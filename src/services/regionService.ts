@@ -1,7 +1,25 @@
 // Region & Geolocation Detection Service
-// Automatically determines the user's country/region from mobile network / GPS
-// latitude & longitude with intelligent timezone fallback, providing culturally
-// authentic player leaderboards for the top 10 regions across the world.
+// Automatically determines the user's country/region from the phone's
+// cellular network/SIM (via TelephonyManager, instant and no permission
+// needed), GPS latitude & longitude, and device timezone as a last-resort
+// fallback, providing culturally authentic player leaderboards for the top
+// 10 regions across the world.
+
+import { Capacitor } from '@capacitor/core';
+import { NetworkRegion } from './networkRegion';
+
+// Higher number = more trustworthy signal. A newly detected region only
+// overwrites the current one if its source is at least as authoritative --
+// e.g. a crude GPS-bounding-box guess should never clobber a real
+// network/SIM country code, and nothing but the user should ever override
+// a manual selection.
+const SOURCE_PRIORITY: Record<string, number> = {
+  timezone: 0,
+  saved: 1,
+  gps: 2,
+  network: 3,
+  manual: 4,
+};
 
 export interface RegionInfo {
   code: string;
@@ -264,8 +282,60 @@ export class RegionService {
       this.saveCurrentFallback();
     }
 
-    // 3. Immediately trigger GPS / network location fetch on app launch
+    // 3. Immediately trigger network/SIM + GPS location fetch on app launch.
+    // Network resolves near-instantly with no permission prompt, so it
+    // typically wins the priority check in applyDetected() before GPS (which
+    // needs a permission grant + fix) even reports back.
+    this.detectFromNetwork();
     this.requestGpsDetection();
+  }
+
+  // Applies a newly detected region, but only if its source is at least as
+  // authoritative as whatever the current region was detected from -- see
+  // SOURCE_PRIORITY. Manual selections are never auto-overridden.
+  private applyDetected(code: string, source: 'network' | 'gps' | 'timezone') {
+    if (!TOP_REGIONS[code]) return;
+    if (this.detectionSource === 'manual') return;
+    if (SOURCE_PRIORITY[source] < SOURCE_PRIORITY[this.detectionSource]) return;
+
+    this.detectedCode = code;
+    this.detectionSource = source;
+    this.isLocationDetected = true;
+
+    const reg = this.getRegion();
+    const coords = this.cachedCoords || { lat: 0, lon: 0 };
+    this.saveLocationLocally({
+      lat: coords.lat,
+      lon: coords.lon,
+      countryCode: code,
+      countryName: reg.name,
+      flag: reg.flag,
+      coordsFormatted:
+        coords.lat !== 0
+          ? `${Math.abs(coords.lat).toFixed(2)}°${coords.lat >= 0 ? 'N' : 'S'}, ${Math.abs(coords.lon).toFixed(2)}°${coords.lon >= 0 ? 'E' : 'W'}`
+          : 'Detected via network',
+      source,
+      timestamp: Date.now(),
+    });
+    this.notifyListeners();
+  }
+
+  // Detect using the phone's cellular network/SIM (TelephonyManager) --
+  // instant, no permission dialog, and reflects the phone's actual current
+  // country (tracks correctly while roaming), unlike timezone or a crude
+  // GPS-bounding-box guess. No-ops on web/non-native platforms.
+  private async detectFromNetwork(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+
+    try {
+      const { networkCountryIso, simCountryIso } = await NetworkRegion.getNetworkCountry();
+      const code = (networkCountryIso || simCountryIso || '').toUpperCase();
+      if (code) {
+        this.applyDetected(code, 'network');
+      }
+    } catch {
+      // Plugin unavailable or threw -- fall through to timezone/GPS.
+    }
   }
 
   public getSavedLocation(): SavedUserLocation | null {
@@ -478,8 +548,11 @@ export class RegionService {
     }
   }
 
-  // Fetch user location and save locally as soon as app is launched
+  // Fetch user location and save locally as soon as app is launched. Runs
+  // network/SIM detection and GPS detection together (both no-op safely if
+  // unavailable) and refreshes anything subscribed (e.g. the Rank screen).
   public fetchAndSaveLocation(): Promise<string> {
+    this.detectFromNetwork();
     return this.requestGpsDetection();
   }
 
@@ -501,25 +574,8 @@ export class RegionService {
           const lon = position.coords.longitude;
           this.cachedCoords = { lat, lon };
           const matchedCountry = this.resolveCountryFromCoords(lat, lon);
-          this.detectedCode = matchedCountry;
-          this.isLocationDetected = true;
-          this.detectionSource = 'gps';
-
-          const reg = this.getRegion();
-          const locationData: SavedUserLocation = {
-            lat,
-            lon,
-            countryCode: matchedCountry,
-            countryName: reg.name,
-            flag: reg.flag,
-            coordsFormatted: `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`,
-            source: 'gps',
-            timestamp: Date.now(),
-          };
-
-          this.saveLocationLocally(locationData);
-          this.notifyListeners();
-          resolve(matchedCountry);
+          this.applyDetected(matchedCountry, 'gps');
+          resolve(this.detectedCode);
         },
         (err) => {
           // If denied, fallback stays on previously saved location or timezone

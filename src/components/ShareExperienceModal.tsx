@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { GameResult, UserProfile } from '../types';
 import { generateSteadinessCard, GeneratedCardData } from '../services/cardGenerator';
+import { saveCardToGallery, shareCardNatively } from '../services/nativeShare';
 import { soundService } from '../services/audio';
 import confetti from 'canvas-confetti';
 import {
@@ -48,6 +50,7 @@ export const ShareExperienceModal: React.FC<ShareExperienceModalProps> = ({
   const [hasTriggeredWhatsApp, setHasTriggeredWhatsApp] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
   const [whatsappOpenedToast, setWhatsappOpenedToast] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const audioPlayedRef = useRef(false);
 
   const steadiness = Math.round(result.steadinessScore ?? result.finalScore ?? 85);
@@ -176,11 +179,16 @@ Think you have steadier hands? Try walking without spilling a single drop! 🏆
     };
   }, [isOpen, result, profile, soundEnabled]);
 
-  const triggerWhatsAppOpen = () => {
+  const fileName = `steady-hands-${steadiness}pct-score.png`;
+
+  // Opens the text-only wa.me deep link -- this is a last-resort fallback,
+  // since it's the only share path guaranteed to work everywhere (even a
+  // plain browser), but it genuinely cannot attach a file: WhatsApp's own
+  // URL scheme has no parameter for that. Whenever an image is available on
+  // native, prefer shareCardWithImage() below instead.
+  const openWhatsAppTextOnly = () => {
     setHasTriggeredWhatsApp(true);
     setWhatsappOpenedToast(true);
-    if (soundEnabled) soundService.playClick();
-
     try {
       window.open(whatsappUrl, '_blank');
     } catch {
@@ -188,13 +196,49 @@ Think you have steadier hands? Try walking without spilling a single drop! 🏆
     }
   };
 
-  const handleDownloadImage = () => {
+  // Shares the card image + caption together via the native OS share sheet
+  // (the only way to attach a file to a WhatsApp -- or any -- share; falls
+  // back to the text-only deep link if native sharing isn't available/fails).
+  const shareCardWithImage = async () => {
+    if (Capacitor.isNativePlatform() && cardData?.dataUrl) {
+      try {
+        await shareCardNatively(cardData.dataUrl, fileName, shareText);
+        setHasTriggeredWhatsApp(true);
+        setWhatsappOpenedToast(true);
+        return;
+      } catch {
+        // Fall through to the text-only link below.
+      }
+    }
+    openWhatsAppTextOnly();
+  };
+
+  const triggerWhatsAppOpen = () => {
+    if (soundEnabled) soundService.playClick();
+    shareCardWithImage();
+  };
+
+  const handleDownloadImage = async () => {
     if (soundEnabled) soundService.playClick();
     if (!cardData?.dataUrl) return;
 
+    if (Capacitor.isNativePlatform()) {
+      setSaveStatus('saving');
+      try {
+        await saveCardToGallery(cardData.dataUrl, fileName);
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      } catch {
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      }
+      return;
+    }
+
+    // Web/browser: the classic download-link trick actually works here.
     const a = document.createElement('a');
     a.href = cardData.dataUrl;
-    a.download = `steady-hands-${steadiness}pct-score.png`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -203,6 +247,14 @@ Think you have steadier hands? Try walking without spilling a single drop! 🏆
   const handleNativeShare = async () => {
     if (soundEnabled) soundService.playClick();
 
+    if (Capacitor.isNativePlatform()) {
+      await shareCardWithImage();
+      return;
+    }
+
+    // Web/browser: Android's WebView doesn't reliably support the Web Share
+    // API with files, but a real browser might -- worth trying before
+    // falling back to the text-only link.
     if (cardData?.file && navigator.canShare && navigator.canShare({ files: [cardData.file] })) {
       try {
         await navigator.share({
@@ -216,8 +268,7 @@ Think you have steadier hands? Try walking without spilling a single drop! 🏆
       }
     }
 
-    // Fallback directly to WhatsApp
-    triggerWhatsAppOpen();
+    openWhatsAppTextOnly();
   };
 
   const handleCopyText = async () => {
@@ -420,14 +471,26 @@ Think you have steadier hands? Try walking without spilling a single drop! 🏆
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={handleDownloadImage}
-              disabled={!cardData?.dataUrl}
+              disabled={!cardData?.dataUrl || saveStatus === 'saving'}
               className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
             >
-              <Download className="w-3.5 h-3.5 text-sky-400" />
-              <span>Save Card Image</span>
+              {saveStatus === 'saved' ? (
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+              ) : (
+                <Download className="w-3.5 h-3.5 text-sky-400" />
+              )}
+              <span>
+                {saveStatus === 'saving'
+                  ? 'Saving…'
+                  : saveStatus === 'saved'
+                  ? 'Saved to Gallery!'
+                  : saveStatus === 'error'
+                  ? 'Save Failed'
+                  : 'Save Card Image'}
+              </span>
             </button>
 
-            {typeof navigator !== 'undefined' && 'canShare' in navigator ? (
+            {Capacitor.isNativePlatform() || (typeof navigator !== 'undefined' && 'canShare' in navigator) ? (
               <button
                 onClick={handleNativeShare}
                 className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"

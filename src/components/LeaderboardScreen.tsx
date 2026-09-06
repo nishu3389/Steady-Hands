@@ -66,11 +66,22 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
     return userName.slice(0, 2).toUpperCase();
   }, [userName]);
 
+  // Real recorded rounds have an id like "lb-<timestamp>" (see
+  // storageService.addLeaderboardEntry) -- the bundled seed data ("Alex
+  // Chen" etc, shown before the player has ever recorded a real score) uses
+  // short ids like "lb-1".."lb-6". This is the only reliable way to tell
+  // "the player actually played" apart from "nothing saved yet, seed
+  // fallback returned" -- the seed entries are otherwise indistinguishable
+  // (one of them even sets isUser: true).
+  const hasPlayed = useMemo(() => entries.some((e) => /^lb-\d{10,}$/.test(e.id)), [entries]);
+
   // Combined dataset: Regional roster + user's best recorded score
   const allEntries: ExtendedLeaderboardItem[] = useMemo(() => {
-    const userBest = entries.filter((e) => e.isUser || e.name === userName || e.name === 'Alex Chen');
-    const highestUserScore = userBest.length > 0 ? Math.max(...userBest.map((e) => e.score)) : 97.4;
-    const userDiff: DifficultyLevel = userBest.length > 0 ? userBest[0].difficulty : 'medium';
+    if (!hasPlayed) return [];
+
+    const userBest = entries.filter((e) => /^lb-\d{10,}$/.test(e.id));
+    const highestUserScore = Math.max(...userBest.map((e) => e.score));
+    const userDiff: DifficultyLevel = userBest[0].difficulty;
 
     // Regional simulated players list
     const regionalPlayers: ExtendedLeaderboardItem[] = currentRegion.players.map((p) => ({
@@ -100,7 +111,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
 
     const combined = [...regionalPlayers, userEntry].sort((a, b) => b.score - a.score);
     return combined;
-  }, [currentRegion, entries, userName, userInitials, profile]);
+  }, [hasPlayed, currentRegion, entries, userName, userInitials, profile]);
 
   // Apply Difficulty filter (ALL / EASY / MED / HARD)
   const filteredEntries = useMemo(() => {
@@ -190,7 +201,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
               <span className="inline-block w-2 h-2 rounded-full bg-sky-500 dark:bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
             </h1>
             <p className="text-[11px] font-bold tracking-wider text-slate-500 dark:text-slate-400 mt-0.5">
-              REGIONAL BODY STEADINESS RANKINGS
+              BODY STEADINESS RANKINGS
             </p>
           </div>
 
@@ -240,7 +251,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
       {/* ========================================================================= */}
       {/* 2. Main Content: Empty State OR Podium + Rows                            */}
       {/* ========================================================================= */}
-      {filteredEntries.length === 0 ? (
+      {!hasPlayed ? (
         /* Empty State Hero Card */
         <main className="neu-raised rounded-3xl p-5 w-full flex flex-col items-center text-center relative overflow-hidden my-2 border border-white/5">
           <div className="relative w-36 h-36 my-2 flex items-center justify-center">

@@ -1,9 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LeaderboardEntry, UserProfile, DifficultyLevel } from '../types';
 import { soundService } from '../services/audio';
 import { RegionInfo } from '../services/regionService';
 import { signInWithGoogle } from '../services/googleAuth';
-import { fetchGlobalLeaderboard, GlobalLeaderboardEntry } from '../services/firestore';
 import { AdMimicBanner } from './AdMimicBanner';
 import {
   Trophy,
@@ -58,33 +57,6 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
-  // null = not fetched yet for this difficulty (still loading); [] = fetched,
-  // no real players found. Keeping these distinct means the podium only ever
-  // renders once with its final, fully-merged composition instead of
-  // rendering fake-only first and visibly reshuffling in real players a
-  // moment later.
-  const [realPlayers, setRealPlayers] = useState<GlobalLeaderboardEntry[] | null>(null);
-
-  // Fetch the real global leaderboard once signed in, refreshed whenever the
-  // difficulty filter changes. No-op for guests -- they never see this data.
-  useEffect(() => {
-    if (!profile?.isSignedIn) {
-      setRealPlayers([]);
-      return;
-    }
-    setRealPlayers(null);
-    let cancelled = false;
-    fetchGlobalLeaderboard(difficulty).then((players) => {
-      if (!cancelled) setRealPlayers(players);
-    }).catch(() => {
-      if (!cancelled) setRealPlayers([]);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.isSignedIn, difficulty]);
-
-  const isLoadingLeaderboard = profile?.isSignedIn && realPlayers === null;
 
   const handleSignIn = async () => {
     if (soundEnabled) soundService.playClick();
@@ -146,22 +118,6 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
       deltaPB: p.deltaPB,
     }));
 
-    // Real signed-in players from Firestore, blended in alongside the
-    // simulated regional roster -- excluding the current user's own doc
-    // since their row is inserted separately below.
-    const realOtherPlayers: ExtendedLeaderboardItem[] = (realPlayers || [])
-      .filter((p) => p.uid !== profile?.uid)
-      .map((p) => ({
-        id: `real-${p.uid}`,
-        name: p.displayName,
-        initials: p.displayName.slice(0, 2).toUpperCase(),
-        score: p.score,
-        difficulty: p.difficulty,
-        streakDays: p.streak || undefined,
-        lastPlayed: 'Recently',
-        isUser: false,
-      }));
-
     // Insert user entry into ranking list -- streakDays/deltaPB reflect real
     // data only (no fabricated fallback values), since this is the one row
     // the player can personally verify against their own actual stats.
@@ -176,9 +132,9 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
       isUser: true,
     };
 
-    const combined = [...regionalPlayers, ...realOtherPlayers, userEntry].sort((a, b) => b.score - a.score);
+    const combined = [...regionalPlayers, userEntry].sort((a, b) => b.score - a.score);
     return combined;
-  }, [hasPlayed, currentRegion, realPlayers, entries, userName, userInitials, profile]);
+  }, [hasPlayed, currentRegion, entries, userName, userInitials, profile]);
 
   // Apply Difficulty filter (ALL / EASY / MED / HARD)
   const filteredEntries = useMemo(() => {
@@ -421,14 +377,6 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
             )}
             <span>{isSigningIn ? 'Signing in…' : 'Sign in with Google'}</span>
           </button>
-        </main>
-      ) : isLoadingLeaderboard ? (
-        /* Loading gate -- waits for the real leaderboard data before
-           rendering the podium/contenders at all, so the list is composed
-           once and doesn't visibly reshuffle a moment after mounting. */
-        <main className="flex-1 flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span className="text-xs font-medium">Loading leaderboard…</span>
         </main>
       ) : (
         /* Active Leaderboard: Podium + Competitive Insights + Contenders */

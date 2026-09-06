@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { GameResult, GameSettings, LeaderboardEntry, NavigationTab, UserProfile } from './types';
+import React, { useState, useEffect, useRef } from 'react';
+import { DifficultyLevel, GameResult, GameSettings, LeaderboardEntry, NavigationTab, UserProfile } from './types';
 import { storageService } from './services/storage';
 import { regionService, RegionInfo } from './services/regionService';
-import { submitScore } from './services/firestore';
+import { fetchMyBestScores, submitScore } from './services/firestore';
 import { BottomNav } from './components/BottomNav';
 import { PlayScreen } from './components/PlayScreen';
 import { InstructionsScreen } from './components/InstructionsScreen';
@@ -23,6 +23,7 @@ export default function App() {
   const [gameSessionKey, setGameSessionKey] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
   const [region, setRegion] = useState<RegionInfo>(() => regionService.getRegion());
+  const hasFetchedCloudBestRef = useRef(false);
 
   // Region detection (network/GPS/timezone) and the regional player-name
   // pool it picks both run once here, at app launch, and are cached locally
@@ -35,6 +36,31 @@ export default function App() {
     regionService.fetchAndSaveLocation();
     return unsub;
   }, []);
+
+  // Pull this player's cloud-saved best scores down into local storage
+  // exactly once per app session (covers both "already signed in from a
+  // previous session" at cold launch, and signing in fresh during this
+  // session). There is no real global leaderboard to read here -- every
+  // other row on the Rank screen is simulated data -- so this one read is
+  // the only Firestore read the app ever does; everything else is a
+  // write-only submit, and only when a round actually beats this reconciled
+  // local best (see handleGameOver below).
+  useEffect(() => {
+    if (!profile.isSignedIn || !profile.uid || hasFetchedCloudBestRef.current) return;
+    hasFetchedCloudBestRef.current = true;
+
+    fetchMyBestScores(profile.uid)
+      .then((cloudBest) => {
+        if (!cloudBest) return;
+        (['easy', 'medium', 'hard'] as DifficultyLevel[]).forEach((diff) => {
+          storageService.saveHighScore(diff, cloudBest[diff]);
+        });
+        setHighScores(storageService.getHighScores());
+      })
+      .catch(() => {
+        // Ignore -- local high scores stay authoritative if this fails.
+      });
+  }, [profile.isSignedIn, profile.uid]);
 
   // Check first launch: show animated tutorial if not seen before
   useEffect(() => {
@@ -122,8 +148,10 @@ export default function App() {
     setGameResult(result);
 
     if (result.isWin) {
-      // Save high score
-      storageService.saveHighScore(result.difficulty, result.finalScore);
+      // Save high score -- also tells us whether this round is actually a
+      // new personal best, which is the only case that should ever reach
+      // Firestore (see the submitScore call below).
+      const isNewBest = storageService.saveHighScore(result.difficulty, result.finalScore);
       setHighScores(storageService.getHighScores());
 
       // Update streak
@@ -141,11 +169,12 @@ export default function App() {
       });
       setLeaderboard(storageService.getLeaderboard());
 
-      // Submit to the global leaderboard -- only for signed-in players, and
-      // only the app itself does this right when a round finishes (never a
-      // user-editable action). Best-effort: the local save above already
-      // happened regardless of network/Firestore availability.
-      if (profile.isSignedIn && profile.uid) {
+      // Save to the cloud -- only for signed-in players, only the app
+      // itself does this right when a round finishes (never a user-editable
+      // action), and only when it's an actual new personal best. Best-effort:
+      // the local save above already happened regardless of network/Firestore
+      // availability.
+      if (isNewBest && profile.isSignedIn && profile.uid) {
         submitScore({
           uid: profile.uid,
           displayName: profile.name,

@@ -1,25 +1,19 @@
 /**
- * Global leaderboard, backed by Firebase Firestore.
+ * Cloud backup of the signed-in player's own best scores, backed by Firebase
+ * Firestore. One document per user in the `leaderboard` collection.
  *
- * One document per signed-in user in the `leaderboard` collection, holding
- * their best score per difficulty (upserted, never appended to) plus enough
- * profile info to render their row without a second lookup. Guests never
- * write here -- only signed-in players do, and only the app itself submits
- * a score (right when a round finishes), never as a user-editable action.
+ * There is no real global leaderboard to query here -- every *other* row
+ * shown on the Rank screen is simulated data (see regionService.ts), so
+ * there is nothing worth reading Firestore for besides this player's own
+ * doc. That keeps usage to exactly:
+ * - One read per app launch (fetchMyBestScores, only if signed in).
+ * - One write per completed round, and only when it's actually a new best
+ *   (see App.tsx/MatchResultsModal.tsx, which compare against the locally
+ *   cached best -- see localBest.ts -- before ever calling submitScore).
  */
 
 import { getApp } from 'firebase/app';
-import {
-  getFirestore,
-  doc,
-  runTransaction,
-  serverTimestamp,
-  collection,
-  query,
-  orderBy,
-  limit,
-  getDocs,
-} from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import './firebase';
 import { DifficultyLevel } from '../types';
 
@@ -30,6 +24,28 @@ function scoreField(difficulty: DifficultyLevel): 'bestScoreEasy' | 'bestScoreMe
     | 'bestScoreEasy'
     | 'bestScoreMedium'
     | 'bestScoreHard';
+}
+
+export interface CloudBestScores {
+  easy: number;
+  medium: number;
+  hard: number;
+}
+
+/**
+ * Reads the signed-in player's saved best scores. Call this once, right
+ * after sign-in / on app launch -- never from the Rank screen itself.
+ */
+export async function fetchMyBestScores(uid: string): Promise<CloudBestScores | null> {
+  const snap = await getDoc(doc(db, 'leaderboard', uid));
+  if (!snap.exists()) return null;
+
+  const data = snap.data() as Record<string, unknown>;
+  return {
+    easy: typeof data.bestScoreEasy === 'number' ? data.bestScoreEasy : 0,
+    medium: typeof data.bestScoreMedium === 'number' ? data.bestScoreMedium : 0,
+    hard: typeof data.bestScoreHard === 'number' ? data.bestScoreHard : 0,
+  };
 }
 
 export interface SubmitScoreParams {
@@ -43,83 +59,27 @@ export interface SubmitScoreParams {
 }
 
 /**
- * Records a completed round's score for the signed-in player, keeping only
- * their personal best per difficulty (and an overall best across all three,
- * used for the "ALL" leaderboard filter). Safe to call after every
- * completed round -- it's a no-op on the ranking if the new score isn't a
- * new best.
+ * Saves a new personal-best score. The caller is responsible for already
+ * having established (against the locally cached best -- see localBest.ts)
+ * that this score actually beats the previous one; this function always
+ * writes unconditionally, with no read, since that comparison already
+ * happened client-side.
  */
 export async function submitScore(params: SubmitScoreParams): Promise<void> {
-  const ref = doc(db, 'leaderboard', params.uid);
   const field = scoreField(params.difficulty);
 
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    const existing = snap.exists() ? (snap.data() as Record<string, unknown>) : {};
-
-    const currentBest = typeof existing[field] === 'number' ? (existing[field] as number) : 0;
-    const nextBest = Math.max(currentBest, params.score);
-
-    const currentOverall = typeof existing.bestScoreOverall === 'number' ? (existing.bestScoreOverall as number) : 0;
-    const nextOverall = Math.max(currentOverall, nextBest);
-    // Whichever difficulty most recently raised the overall best is the one
-    // shown next to it in the "ALL" filter -- otherwise keep whatever was
-    // already recorded.
-    const bestDifficultyOverall =
-      nextBest >= currentOverall ? params.difficulty : (existing.bestDifficultyOverall as DifficultyLevel) || params.difficulty;
-
-    tx.set(
-      ref,
-      {
-        uid: params.uid,
-        displayName: params.displayName,
-        photoUrl: params.photoUrl,
-        countryCode: params.countryCode,
-        streak: params.streak,
-        [field]: nextBest,
-        bestScoreOverall: nextOverall,
-        bestDifficultyOverall,
-        lastPlayedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-  });
-}
-
-export interface GlobalLeaderboardEntry {
-  uid: string;
-  displayName: string;
-  photoUrl: string;
-  countryCode: string;
-  streak: number;
-  score: number;
-  difficulty: DifficultyLevel;
-}
-
-/**
- * Fetches the top N players for a difficulty ('all' uses the combined best
- * across difficulties). Excludes nobody -- the caller is responsible for
- * filtering out the current user's own row if they render it separately.
- */
-export async function fetchGlobalLeaderboard(
-  difficulty: DifficultyLevel | 'all',
-  limitCount = 25
-): Promise<GlobalLeaderboardEntry[]> {
-  const field = difficulty === 'all' ? 'bestScoreOverall' : scoreField(difficulty);
-  const q = query(collection(db, 'leaderboard'), orderBy(field, 'desc'), limit(limitCount));
-
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const data = d.data() as Record<string, unknown>;
-    return {
-      uid: d.id,
-      displayName: (data.displayName as string) || 'Player',
-      photoUrl: (data.photoUrl as string) || '',
-      countryCode: (data.countryCode as string) || '',
-      streak: (data.streak as number) || 0,
-      score: (data[field] as number) || 0,
-      difficulty: difficulty === 'all' ? ((data.bestDifficultyOverall as DifficultyLevel) || 'medium') : difficulty,
-    };
-  });
+  await setDoc(
+    doc(db, 'leaderboard', params.uid),
+    {
+      uid: params.uid,
+      displayName: params.displayName,
+      photoUrl: params.photoUrl,
+      countryCode: params.countryCode,
+      streak: params.streak,
+      [field]: params.score,
+      lastPlayedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 }

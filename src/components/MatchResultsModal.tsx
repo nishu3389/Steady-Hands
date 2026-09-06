@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GameResult, UserProfile } from '../types';
+import { DifficultyLevel, GameResult, UserProfile } from '../types';
 import { RefreshCw, BarChart2, AlertCircle, Footprints, Droplets, Sparkles, Activity, ShieldCheck, MessageCircle, Share2, LogIn, Loader2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundService } from '../services/audio';
@@ -7,8 +7,9 @@ import { MINDFUL_BENEFITS, MindfulBenefit } from '../data/mindfulBenefits';
 import { AdMimicBanner } from './AdMimicBanner';
 import { ShareExperienceModal } from './ShareExperienceModal';
 import { signInWithGoogle } from '../services/googleAuth';
-import { submitScore } from '../services/firestore';
+import { fetchMyBestScores, submitScore } from '../services/firestore';
 import { regionService } from '../services/regionService';
+import { storageService } from '../services/storage';
 
 interface MatchResultsModalProps {
   result: GameResult;
@@ -47,22 +48,38 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
       });
 
       // handleGameOver in App.tsx already ran (and skipped the Firestore
-      // submit) before this sign-in completed, so the score for *this*
-      // round would otherwise never reach the leaderboard. Submit it now,
-      // using the just-obtained uid directly rather than waiting for the
-      // profile prop to catch up on the next render.
+      // submit, since we weren't signed in yet) before this sign-in
+      // completed, so this round's score would otherwise never reach the
+      // cloud. This is also effectively "first cloud read of the session"
+      // for this player, so pull down whatever's already saved there (e.g.
+      // from a previous install/device) and reconcile it into local high
+      // scores before deciding whether this round is actually a new best.
       if (result.isWin) {
-        submitScore({
-          uid: googleUser.id,
-          displayName: googleUser.name,
-          photoUrl: googleUser.picture,
-          countryCode: regionService.getRegion().code,
-          difficulty: result.difficulty,
-          score: result.finalScore,
-          streak: profile?.streak || 0,
-        }).catch(() => {
-          // Ignore -- the player's progress is already saved locally.
-        });
+        try {
+          const cloudBest = await fetchMyBestScores(googleUser.id);
+          if (cloudBest) {
+            (['easy', 'medium', 'hard'] as DifficultyLevel[]).forEach((diff) => {
+              storageService.saveHighScore(diff, cloudBest[diff]);
+            });
+          }
+        } catch {
+          // Ignore -- fall back to whatever's already local.
+        }
+
+        const currentBest = storageService.getHighScores()[result.difficulty];
+        if (result.finalScore >= currentBest) {
+          submitScore({
+            uid: googleUser.id,
+            displayName: googleUser.name,
+            photoUrl: googleUser.picture,
+            countryCode: regionService.getRegion().code,
+            difficulty: result.difficulty,
+            score: result.finalScore,
+            streak: profile?.streak || 0,
+          }).catch(() => {
+            // Ignore -- the player's progress is already saved locally.
+          });
+        }
       }
     } catch (err: unknown) {
       const error = err as Error;

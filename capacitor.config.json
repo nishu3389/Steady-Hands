@@ -16,6 +16,10 @@
       "launchShowDuration": 1500,
       "backgroundColor": "#f7f9fc",
       "showSpinner": false
+    },
+    "AdMob": {
+      "appId": "ca-app-pub-4833668827116420~3753425596",
+      "bannerAdUnitId": "ca-app-pub-4833668827116420/8214685836"
     }
   }
 }

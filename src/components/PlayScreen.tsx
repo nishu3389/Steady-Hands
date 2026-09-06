@@ -7,6 +7,7 @@ import { soundService } from '../services/audio';
 import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
 import { walkingDetector, formatWalkingDistance } from '../services/walkingDetector';
 import { LocationResolver } from '../services/locationResolver';
+import { AdMobBanner } from './AdMobBanner';
 
 interface PlayScreenProps {
   settings: GameSettings;
@@ -1415,6 +1416,9 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             })}
           </div>
         </div>
+
+        {/* Google AdMob Banner Placement (Below Duration Selection) */}
+        <AdMobBanner />
       </div>
 
       {/* LOCATION REQUIRED DIALOG -- shown when the player denied location

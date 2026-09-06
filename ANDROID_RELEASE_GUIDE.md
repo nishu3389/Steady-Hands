@@ -60,6 +60,14 @@ Ensure the following permissions are inside `AndroidManifest.xml` (above the `<a
 <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
 ```
 
+#### 3. Google AdMob Configuration
+The AdMob App ID and Banner Ad Unit ID are configured in `AndroidManifest.xml` and `capacitor.config.json`:
+- **App ID**: `ca-app-pub-4833668827116420~3753425596`
+- **Banner Ad Unit ID**: `ca-app-pub-4833668827116420/8214685836`
+- **Slot ID**: `8214685836`
+- Placed on the Home screen directly below the duration selector.
+
+
 ---
 
 ### Step 6: Generate Signed Android App Bundle (.aab)

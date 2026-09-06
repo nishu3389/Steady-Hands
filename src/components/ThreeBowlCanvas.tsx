@@ -116,16 +116,15 @@ export const ThreeBowlCanvas: React.FC<ThreeBowlCanvasProps> = ({
        just vanishing. Kept subtle/transparent here since this sits inside a
        small embedded card, not a full-bleed scene. */
     const TABLE_RADIUS = 3.2;
-    const table = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS, 48),
-      new THREE.MeshStandardMaterial({
-        color: isDarkMode ? 0x1c2128 : 0xe4e8ee,
-        roughness: 0.9,
-        metalness: 0.05,
-        transparent: true,
-        opacity: isDarkMode ? 0.5 : 0.35,
-      })
-    );
+    const tableGeo = new THREE.CircleGeometry(TABLE_RADIUS, 48);
+    const tableMat = new THREE.MeshStandardMaterial({
+      color: isDarkMode ? 0x1c2128 : 0xe4e8ee,
+      roughness: 0.9,
+      metalness: 0.05,
+      transparent: true,
+      opacity: isDarkMode ? 0.5 : 0.35,
+    });
+    const table = new THREE.Mesh(tableGeo, tableMat);
     table.rotation.x = -Math.PI / 2;
     table.position.y = -1.02;
     scene.add(table);
@@ -135,12 +134,11 @@ export const ThreeBowlCanvas: React.FC<ThreeBowlCanvasProps> = ({
     puddleCanvas.width = puddleCanvas.height = PUDDLE_CANVAS_SIZE;
     const puddleCtx = puddleCanvas.getContext('2d')!;
     const puddleTexture = new THREE.CanvasTexture(puddleCanvas);
-    const puddleMesh = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS, 48),
-      new THREE.MeshBasicMaterial({
-        map: puddleTexture, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-      })
-    );
+    const puddleGeo = new THREE.CircleGeometry(TABLE_RADIUS, 48);
+    const puddleMat = new THREE.MeshBasicMaterial({
+      map: puddleTexture, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    });
+    const puddleMesh = new THREE.Mesh(puddleGeo, puddleMat);
     puddleMesh.rotation.x = -Math.PI / 2;
     puddleMesh.position.y = table.position.y + 0.002;
     scene.add(puddleMesh);
@@ -305,13 +303,14 @@ export const ThreeBowlCanvas: React.FC<ThreeBowlCanvasProps> = ({
     scallopRim(bowlGeo, bowlProfile);
     paintRimGold(bowlGeo, bowlProfile);
 
+    const hammeredBumpTexture = makeHammeredBumpTexture();
     const bowlMat = new THREE.MeshStandardMaterial({
       color: isDarkMode ? 0xdcd8ce : 0xf5f1e8,
       roughness: 0.55,
       metalness: 0.05,
       side: THREE.DoubleSide,
       vertexColors: true,
-      bumpMap: makeHammeredBumpTexture(),
+      bumpMap: hammeredBumpTexture,
       bumpScale: 0.006,
     });
     const bowlMesh = new THREE.Mesh(bowlGeo, bowlMat);
@@ -320,13 +319,14 @@ export const ThreeBowlCanvas: React.FC<ThreeBowlCanvasProps> = ({
     bowlGroup.add(bowlMesh);
 
     const innerGeo = bowlGeo.clone();
+    const goldVeinTexture = makeGoldVeinTexture();
     const innerMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       roughness: 0.28,
       metalness: 0.08,
       side: THREE.BackSide,
       vertexColors: true,
-      map: makeGoldVeinTexture(),
+      map: goldVeinTexture,
     });
     const innerMesh = new THREE.Mesh(innerGeo, innerMat);
     innerMesh.scale.setScalar(0.985);
@@ -579,6 +579,31 @@ export const ThreeBowlCanvas: React.FC<ThreeBowlCanvasProps> = ({
         container.removeEventListener('pointermove', handlePointerMove);
         container.removeEventListener('touchmove', handlePointerMove);
       }
+      // renderer.dispose() only frees the renderer's own internal WebGL
+      // state; it does not touch the geometries/materials/textures created
+      // above, and scene.clear() only detaches them from the scene graph --
+      // neither actually releases their GPU-side memory. Left undisposed,
+      // every fresh round (this effect re-runs per mount, keyed on
+      // [interactive, isDarkMode]) permanently leaks a full set of these,
+      // which was very likely the real cause behind this screen's mount
+      // stalling/flickering after a few rounds.
+      tableGeo.dispose();
+      tableMat.dispose();
+      puddleGeo.dispose();
+      puddleMat.dispose();
+      puddleTexture.dispose();
+      skyEnvTexture.dispose();
+      hammeredBumpTexture.dispose();
+      goldVeinTexture.dispose();
+      bowlGeo.dispose();
+      bowlMat.dispose();
+      innerGeo.dispose();
+      innerMat.dispose();
+      waterGeo.dispose();
+      waterMat.dispose();
+      partGeo.dispose();
+      partMat.dispose();
+
       renderer.dispose();
       scene.clear();
       if (container.contains(renderer.domElement)) {

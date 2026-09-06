@@ -54,18 +54,22 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
-  const [realPlayers, setRealPlayers] = useState<GlobalLeaderboardEntry[]>([]);
+  // null = not fetched yet for this difficulty (still loading); [] = fetched,
+  // no real players found. Keeping these distinct means the podium only ever
+  // renders once with its final, fully-merged composition instead of
+  // rendering fake-only first and visibly reshuffling in real players a
+  // moment later.
+  const [realPlayers, setRealPlayers] = useState<GlobalLeaderboardEntry[] | null>(null);
 
   // Subscribe to regionService updates (region picks which player name pool
-  // to display, but is never shown in the UI itself) and refresh on mount.
+  // to display, but is never shown in the UI itself). Location detection
+  // itself already runs once at app launch (see App.tsx) -- re-triggering it
+  // on every visit to this tab was redundant work that also contributed to
+  // the visible reflow/flicker when switching tabs.
   useEffect(() => {
-    const unsub = regionService.subscribe((newReg) => {
+    return regionService.subscribe((newReg) => {
       setCurrentRegion(newReg);
     });
-
-    regionService.fetchAndSaveLocation();
-
-    return unsub;
   }, []);
 
   // Fetch the real global leaderboard once signed in, refreshed whenever the
@@ -75,6 +79,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
       setRealPlayers([]);
       return;
     }
+    setRealPlayers(null);
     let cancelled = false;
     fetchGlobalLeaderboard(difficulty).then((players) => {
       if (!cancelled) setRealPlayers(players);
@@ -85,6 +90,8 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
       cancelled = true;
     };
   }, [profile?.isSignedIn, difficulty]);
+
+  const isLoadingLeaderboard = profile?.isSignedIn && realPlayers === null;
 
   const handleSignIn = async () => {
     if (soundEnabled) soundService.playClick();
@@ -149,7 +156,7 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
     // Real signed-in players from Firestore, blended in alongside the
     // simulated regional roster -- excluding the current user's own doc
     // since their row is inserted separately below.
-    const realOtherPlayers: ExtendedLeaderboardItem[] = realPlayers
+    const realOtherPlayers: ExtendedLeaderboardItem[] = (realPlayers || [])
       .filter((p) => p.uid !== profile?.uid)
       .map((p) => ({
         id: `real-${p.uid}`,
@@ -162,17 +169,18 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
         isUser: false,
       }));
 
-    // Insert user entry into ranking list
+    // Insert user entry into ranking list -- streakDays/deltaPB reflect real
+    // data only (no fabricated fallback values), since this is the one row
+    // the player can personally verify against their own actual stats.
     const userEntry: ExtendedLeaderboardItem = {
       id: 'user-self',
       name: userName === 'Guest Player' ? 'You' : userName,
       initials: userInitials,
       score: highestUserScore,
       difficulty: userDiff,
-      streakDays: profile?.streak || 4,
+      streakDays: profile?.streak || undefined,
       lastPlayed: 'Just now',
       isUser: true,
-      deltaPB: '+1.8% PB',
     };
 
     const combined = [...regionalPlayers, ...realOtherPlayers, userEntry].sort((a, b) => b.score - a.score);
@@ -421,6 +429,14 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
             <span>{isSigningIn ? 'Signing in…' : 'Sign in with Google'}</span>
           </button>
         </main>
+      ) : isLoadingLeaderboard ? (
+        /* Loading gate -- waits for the real leaderboard data before
+           rendering the podium/contenders at all, so the list is composed
+           once and doesn't visibly reshuffle a moment after mounting. */
+        <main className="flex-1 flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span className="text-xs font-medium">Loading leaderboard…</span>
+        </main>
       ) : (
         /* Active Leaderboard: Podium + Competitive Insights + Contenders */
         <main className="flex-1 space-y-4 pt-1">
@@ -435,9 +451,11 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                 {podium[1] ? (
                   <div className="flex-1 flex flex-col items-center">
                     <div className="mb-1 flex flex-col items-center">
-                      <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5 mb-1">
-                        {podium[1].deltaPB || '+1.4% PB'}
-                      </span>
+                      {podium[1].deltaPB && (
+                        <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5 mb-1">
+                          {podium[1].deltaPB}
+                        </span>
+                      )}
 
                       <div className="relative">
                         <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-tr from-slate-400 via-slate-100 to-slate-500 shadow-[0_0_12px_rgba(203,213,225,0.4)]">
@@ -516,9 +534,11 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
                 {podium[2] ? (
                   <div className="flex-1 flex flex-col items-center">
                     <div className="mb-1 flex flex-col items-center">
-                      <span className="text-[9px] font-bold text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-1.5 py-0.5 rounded border border-orange-500/20 mb-1">
-                        🔥 {podium[2].streakDays || 5}d streak
-                      </span>
+                      {!!podium[2].streakDays && (
+                        <span className="text-[9px] font-bold text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-950/40 px-1.5 py-0.5 rounded border border-orange-500/20 mb-1">
+                          🔥 {podium[2].streakDays}d streak
+                        </span>
+                      )}
 
                       <div className="relative">
                         <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-tr from-amber-700 via-orange-300 to-yellow-800 shadow-[0_0_12px_rgba(249,115,22,0.3)]">
@@ -553,49 +573,62 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
             </section>
           )}
 
-          {/* Competitive Feed Card */}
-          <section
-            aria-label="Competitive Insights"
-            className="neu-inset rounded-2xl p-3.5 border border-white/[0.03] relative overflow-hidden"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 mt-0.5">
-                <Flame className="w-5 h-5 fill-current" />
-              </div>
+          {/* Competitive Insight Card -- entirely derived from the player's
+              actual position in filteredEntries, never a scripted claim, so
+              it can never contradict where they're actually ranked. */}
+          {(() => {
+            const userIndex = filteredEntries.findIndex((e) => e.isUser);
+            if (userIndex === -1) return null;
+            const me = filteredEntries[userIndex];
+            const personAbove = userIndex > 0 ? filteredEntries[userIndex - 1] : null;
+            const modeLabel = difficulty === 'all' ? me.difficulty.toUpperCase() : difficulty.toUpperCase();
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-slate-800 dark:text-white tracking-tight">
-                    You passed {podium[2]?.name || 'Contender'}
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-1.5 py-0.2 rounded border border-emerald-500/30">
-                    +0.6%
-                  </span>
+            return (
+              <section
+                aria-label="Competitive Insights"
+                className="neu-inset rounded-2xl p-3.5 border border-white/[0.03] relative overflow-hidden"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 mt-0.5">
+                    <Flame className="w-5 h-5 fill-current" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-bold text-slate-800 dark:text-white tracking-tight">
+                      {userIndex === 0 ? "You're #1 right now!" : `Your Rank: #${userIndex + 1}`}
+                    </span>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      {modeLabel} Mode
+                    </p>
+
+                    <div className="mt-2.5 pt-2 border-t border-black/5 dark:border-white/[0.04] flex items-center justify-between text-[11px]">
+                      {personAbove ? (
+                        <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1 font-medium">
+                          <Target className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
+                          <strong className="text-sky-600 dark:text-sky-300">
+                            {Math.max(0.1, personAbove.score - me.score).toFixed(1)}% behind
+                          </strong>{' '}
+                          {personAbove.name} for rank #{userIndex}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">
+                          Keep it up to stay in the lead.
+                        </span>
+                      )}
+
+                      <button
+                        onClick={onPlayNow}
+                        className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors flex items-center gap-0.5 cursor-pointer shrink-0"
+                      >
+                        <span>Play Now</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  {difficulty === 'all' ? 'Hard' : difficulty.toUpperCase()} Mode
-                </p>
-
-                <div className="mt-2.5 pt-2 border-t border-black/5 dark:border-white/[0.04] flex items-center justify-between text-[11px]">
-                  <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1 font-medium">
-                    <Target className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-                    <strong className="text-sky-600 dark:text-sky-300">
-                      {(Math.max(0.1, (podium[0]?.score || 98.7) - (podium[1]?.score || 97.4))).toFixed(1)}% behind
-                    </strong>{' '}
-                    {podium[0]?.name || 'Leader'} for #1!
-                  </span>
-
-                  <button
-                    onClick={onPlayNow}
-                    className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors flex items-center gap-0.5 cursor-pointer"
-                  >
-                    <span>Play Now</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
+              </section>
+            );
+          })()}
 
           {/* Next Contenders List (Ranks 4+) */}
           {contenders.length > 0 && (

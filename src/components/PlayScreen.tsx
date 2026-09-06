@@ -22,6 +22,12 @@ interface PlayScreenProps {
 
 type GamePhase = 'lobby' | 'calibrating' | 'transitioning' | 'playing';
 
+// TEMPORARY TEST OVERRIDE -- forces every round to this length regardless of
+// the duration the player picked (45/60/90s), so game-over/leaderboard/sign-in
+// flows can be tested quickly. Remove this and the two setTimeLeft() call
+// sites that use it to restore normal duration selection.
+const TEST_ROUND_DURATION_SEC = 5;
+
 /* ============================================================
    GAMEPLAY PHYSICS — ported from WaterBowlProject (water-bowl-game.html)
    instead of this app's original ad-hoc safeRadius/spillSpeedMult model.
@@ -140,7 +146,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     setGamePhase('lobby');
     gamePhaseRef.current = 'lobby';
     setWaterLeft(100);
-    setTimeLeft(selectedDuration);
+    setTimeLeft(TEST_ROUND_DURATION_SEC);
     setTiltX(0);
     setTiltY(0);
     setIsSpilling(false);
@@ -484,7 +490,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     bowlTiltXRef.current = 0;
     bowlTiltZRef.current = 0;
     setWaterLeft(100);
-    setTimeLeft(selectedDuration);
+    setTimeLeft(TEST_ROUND_DURATION_SEC);
     setTiltX(0);
     setTiltY(0);
     setIsSpilling(false);
@@ -669,7 +675,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
 
           if (newTime <= 0) {
             const finalWater = waterLeftRef.current;
-            finishGame(finalWater >= 50, finalWater, selectedDuration);
+            finishGame(finalWater >= 50, finalWater, TEST_ROUND_DURATION_SEC);
             return;
           }
         }
@@ -704,7 +710,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
           }
 
           if (nextWater <= 0) {
-            finishGame(false, 0, selectedDuration - timeLeftRef.current);
+            finishGame(false, 0, TEST_ROUND_DURATION_SEC - timeLeftRef.current);
             return;
           }
         } else {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameResult, GameSettings, LeaderboardEntry, NavigationTab, UserProfile } from './types';
 import { storageService } from './services/storage';
+import { regionService } from './services/regionService';
 import { BottomNav } from './components/BottomNav';
 import { PlayScreen } from './components/PlayScreen';
 import { InstructionsScreen } from './components/InstructionsScreen';
@@ -20,6 +21,11 @@ export default function App() {
   const [isGameActive, setIsGameActive] = useState(false);
   const [gameSessionKey, setGameSessionKey] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+
+  // Fetch user location as soon as app launches & save locally
+  useEffect(() => {
+    regionService.fetchAndSaveLocation();
+  }, []);
 
   // Check first launch: show animated tutorial if not seen before
   useEffect(() => {
@@ -50,22 +56,37 @@ export default function App() {
     setGameSessionKey((prev) => prev + 1);
   };
 
-  // Apply Theme — the Light/Dark/System picker is hidden for now (Settings
-  // screen), so dark is forced here regardless of settings.theme; this also
-  // covers anyone with a stale non-dark value already saved in localStorage
-  // from before the picker was hidden.
+  // Apply Day / Night / System Theme
   useEffect(() => {
     const root = document.documentElement;
-    const isDark = true;
+    const mediaQuery = typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    const computeIsDark = () => {
+      if (settings.theme === 'dark') return true;
+      if (settings.theme === 'light') return false;
+      return mediaQuery ? mediaQuery.matches : false;
+    };
 
-    if (isDark) {
-      root.classList.add('dark');
-      root.style.backgroundColor = '#191c1e';
-      root.style.color = '#eff1f4';
-    } else {
-      root.classList.remove('dark');
-      root.style.backgroundColor = '#f0f4f9';
-      root.style.color = '#191c1e';
+    const applyTheme = () => {
+      const darkActive = computeIsDark();
+      if (darkActive) {
+        root.classList.add('dark');
+        root.classList.remove('light');
+        root.style.backgroundColor = '#0f172a';
+        root.style.color = '#eff1f4';
+      } else {
+        root.classList.remove('dark');
+        root.classList.add('light');
+        root.style.backgroundColor = '#f0f4f8';
+        root.style.color = '#0f172a';
+      }
+    };
+
+    applyTheme();
+
+    if (settings.theme === 'system' && mediaQuery) {
+      const listener = () => applyTheme();
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
     }
   }, [settings.theme]);
 
@@ -123,8 +144,11 @@ export default function App() {
     storageService.saveProfile(newProfile);
   };
 
-  // Forced dark while the theme picker is hidden — see the effect above.
-  const isDarkMode = true;
+  const prefersDark =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDarkMode =
+    settings.theme === 'dark' || (settings.theme === 'system' && prefersDark);
 
   return (
     <div className="h-full bg-[#f0f4f9] dark:bg-[#191c1e] text-[#191c1e] dark:text-[#eff1f4] flex flex-col justify-between transition-colors duration-200">
@@ -147,6 +171,7 @@ export default function App() {
             >
               <MatchResultsModal
                 result={gameResult}
+                profile={profile}
                 onTryAgain={() => setGameResult(null)}
                 onOpenLeaderboard={() => {
                   setGameResult(null);

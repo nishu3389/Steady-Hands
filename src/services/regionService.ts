@@ -230,16 +230,90 @@ export const TOP_REGIONS: Record<string, RegionInfo> = {
   },
 };
 
+export interface SavedUserLocation {
+  lat: number;
+  lon: number;
+  countryCode: string;
+  countryName: string;
+  flag: string;
+  coordsFormatted: string;
+  source: 'gps' | 'network' | 'timezone' | 'saved' | 'manual';
+  timestamp: number;
+}
+
+const STORAGE_KEY_LOCATION = 'steady_hands_saved_location';
+
 export class RegionService {
   private detectedCode: string = 'PK'; // default
   private isLocationDetected: boolean = false;
-  private detectionSource: 'gps' | 'network' | 'timezone' | 'manual' = 'timezone';
+  private detectionSource: 'gps' | 'network' | 'timezone' | 'manual' | 'saved' = 'timezone';
   private cachedCoords: { lat: number; lon: number } | null = null;
   private listeners: Array<(region: RegionInfo) => void> = [];
 
   constructor() {
-    this.detectFromTimezone();
+    // 1. First check if a location is already saved locally
+    const saved = this.getSavedLocation();
+    if (saved && TOP_REGIONS[saved.countryCode]) {
+      this.detectedCode = saved.countryCode;
+      this.cachedCoords = { lat: saved.lat, lon: saved.lon };
+      this.detectionSource = saved.source || 'saved';
+      this.isLocationDetected = true;
+    } else {
+      // 2. Fallback to timezone until GPS resolves
+      this.detectFromTimezone();
+      this.saveCurrentFallback();
+    }
+
+    // 3. Immediately trigger GPS / network location fetch on app launch
     this.requestGpsDetection();
+  }
+
+  public getSavedLocation(): SavedUserLocation | null {
+    try {
+      const item = localStorage.getItem(STORAGE_KEY_LOCATION);
+      if (item) {
+        return JSON.parse(item) as SavedUserLocation;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  public saveLocationLocally(location: SavedUserLocation): void {
+    try {
+      localStorage.setItem(STORAGE_KEY_LOCATION, JSON.stringify(location));
+    } catch {
+      // ignore
+    }
+  }
+
+  private saveCurrentFallback() {
+    const reg = this.getRegion();
+    const fallbackCoords: Record<string, { lat: number; lon: number }> = {
+      PK: { lat: 31.5204, lon: 74.3587 },
+      US: { lat: 37.7749, lon: -122.4194 },
+      IN: { lat: 28.6139, lon: 77.2090 },
+      CA: { lat: 43.6532, lon: -79.3832 },
+      GB: { lat: 51.5074, lon: -0.1278 },
+      DE: { lat: 52.5200, lon: 13.4050 },
+      JP: { lat: 35.6762, lon: 139.6503 },
+      BR: { lat: -23.5505, lon: -46.6333 },
+      AE: { lat: 25.2048, lon: 55.2708 },
+      AU: { lat: -33.8688, lon: 151.2093 },
+    };
+    const c = fallbackCoords[this.detectedCode] || fallbackCoords.PK;
+    this.cachedCoords = c;
+    this.saveLocationLocally({
+      lat: c.lat,
+      lon: c.lon,
+      countryCode: this.detectedCode,
+      countryName: reg.name,
+      flag: reg.flag,
+      coordsFormatted: `${Math.abs(c.lat).toFixed(2)}°${c.lat >= 0 ? 'N' : 'S'}, ${Math.abs(c.lon).toFixed(2)}°${c.lon >= 0 ? 'E' : 'W'}`,
+      source: 'timezone',
+      timestamp: Date.now(),
+    });
   }
 
   public getRegion(): RegionInfo {
@@ -266,6 +340,18 @@ export class RegionService {
     if (TOP_REGIONS[code]) {
       this.detectedCode = code;
       if (manual) this.detectionSource = 'manual';
+      const reg = this.getRegion();
+      const coords = this.cachedCoords || { lat: 0, lon: 0 };
+      this.saveLocationLocally({
+        lat: coords.lat,
+        lon: coords.lon,
+        countryCode: code,
+        countryName: reg.name,
+        flag: reg.flag,
+        coordsFormatted: coords.lat !== 0 ? `${Math.abs(coords.lat).toFixed(2)}°${coords.lat >= 0 ? 'N' : 'S'}, ${Math.abs(coords.lon).toFixed(2)}°${coords.lon >= 0 ? 'E' : 'W'}` : 'Location Set',
+        source: manual ? 'manual' : 'gps',
+        timestamp: Date.now(),
+      });
       this.notifyListeners();
     }
   }
@@ -320,13 +406,30 @@ export class RegionService {
     if (lat >= -34.0 && lat <= 5.5 && lon >= -74.0 && lon <= -34.0) {
       return 'BR';
     }
-    // 9. UAE & Gulf Region: lat 22.0 to 26.5, lon 51.0 to 56.5
-    if (lat >= 16.0 && lat <= 32.0 && lon >= 34.0 && lon <= 56.5) {
+    // 9. UAE & Gulf Region: lat 12.0 to 35.0, lon 34.0 to 60.0
+    if (lat >= 12.0 && lat <= 35.0 && lon >= 34.0 && lon <= 60.0) {
       return 'AE';
     }
     // 10. Australia: lat -44.0 to -10.0, lon 113.0 to 154.0
     if (lat >= -44.0 && lat <= -10.0 && lon >= 113.0 && lon <= 154.0) {
       return 'AU';
+    }
+
+    // Continental fallback routing
+    if (lon < -30) {
+      return lat >= 49 ? 'CA' : lat >= 15 ? 'US' : 'BR';
+    }
+    if (lat >= 35 && lon >= -15 && lon <= 45) {
+      return lon <= 2 ? 'GB' : 'DE';
+    }
+    if (lat >= 5 && lat <= 45 && lon >= 60 && lon <= 95) {
+      return lon <= 74 && lat >= 23 ? 'PK' : 'IN';
+    }
+    if (lon >= 95) {
+      return lat < 0 ? 'AU' : 'JP';
+    }
+    if (lon >= -20 && lon <= 60) {
+      return 'AE';
     }
 
     // Default to PK or US
@@ -375,10 +478,19 @@ export class RegionService {
     }
   }
 
+  // Fetch user location and save locally as soon as app is launched
+  public fetchAndSaveLocation(): Promise<string> {
+    return this.requestGpsDetection();
+  }
+
   // Request high-accuracy mobile GPS & network location
   public requestGpsDetection(): Promise<string> {
     return new Promise((resolve) => {
       if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+        const saved = this.getSavedLocation();
+        if (!saved) {
+          this.saveCurrentFallback();
+        }
         resolve(this.detectedCode);
         return;
       }
@@ -392,17 +504,35 @@ export class RegionService {
           this.detectedCode = matchedCountry;
           this.isLocationDetected = true;
           this.detectionSource = 'gps';
+
+          const reg = this.getRegion();
+          const locationData: SavedUserLocation = {
+            lat,
+            lon,
+            countryCode: matchedCountry,
+            countryName: reg.name,
+            flag: reg.flag,
+            coordsFormatted: `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`,
+            source: 'gps',
+            timestamp: Date.now(),
+          };
+
+          this.saveLocationLocally(locationData);
           this.notifyListeners();
           resolve(matchedCountry);
         },
         (err) => {
-          // If denied, fallback stays on timezone or previously detected
+          // If denied, fallback stays on previously saved location or timezone
+          const saved = this.getSavedLocation();
+          if (!saved) {
+            this.saveCurrentFallback();
+          }
           resolve(this.detectedCode);
         },
         {
           enableHighAccuracy: true,
-          timeout: 6000,
-          maximumAge: 60000,
+          timeout: 8000,
+          maximumAge: 120000,
         }
       );
     });

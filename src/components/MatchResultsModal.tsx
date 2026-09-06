@@ -7,6 +7,8 @@ import { MINDFUL_BENEFITS, MindfulBenefit } from '../data/mindfulBenefits';
 import { AdMimicBanner } from './AdMimicBanner';
 import { ShareExperienceModal } from './ShareExperienceModal';
 import { signInWithGoogle } from '../services/googleAuth';
+import { submitScore } from '../services/firestore';
+import { regionService } from '../services/regionService';
 
 interface MatchResultsModalProps {
   result: GameResult;
@@ -43,6 +45,25 @@ export const MatchResultsModal: React.FC<MatchResultsModalProps> = ({
         email: googleUser.email,
         uid: googleUser.id,
       });
+
+      // handleGameOver in App.tsx already ran (and skipped the Firestore
+      // submit) before this sign-in completed, so the score for *this*
+      // round would otherwise never reach the leaderboard. Submit it now,
+      // using the just-obtained uid directly rather than waiting for the
+      // profile prop to catch up on the next render.
+      if (result.isWin) {
+        submitScore({
+          uid: googleUser.id,
+          displayName: googleUser.name,
+          photoUrl: googleUser.picture,
+          countryCode: regionService.getRegion().code,
+          difficulty: result.difficulty,
+          score: result.finalScore,
+          streak: profile?.streak || 0,
+        }).catch(() => {
+          // Ignore -- the player's progress is already saved locally.
+        });
+      }
     } catch (err: unknown) {
       const error = err as Error;
       setSignInError(error.message || 'Sign-in could not be completed.');

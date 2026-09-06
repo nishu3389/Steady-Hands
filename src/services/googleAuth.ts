@@ -1,8 +1,19 @@
 /**
  * Google Sign-In Service
- * Uses official Google Identity Services (GIS) client-side SDK
- * to authenticate users and fetch profile information (name, avatar photo, email).
+ *
+ * - Native (packaged Android app via Capacitor): uses the
+ *   @codetrix-studio/capacitor-google-auth plugin, which drives the real
+ *   Google Sign-In SDK. This is required because Google blocks OAuth
+ *   sign-in inside embedded WebViews (Error 403: disallowed_useragent),
+ *   which is what the web GIS flow below runs in when packaged as an app.
+ * - Web (e.g. `vite dev` in a browser): uses the official Google Identity
+ *   Services (GIS) client-side SDK directly.
+ *
+ * Both paths resolve to the same GoogleUserProfile shape (name, photo, email).
  */
+
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth as CapacitorGoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 export interface GoogleUserProfile {
   id: string;
@@ -100,11 +111,38 @@ export function isGoogleAuthConfigured(): boolean {
   return typeof clientId === 'string' && clientId.trim().length > 0 && !clientId.includes('YOUR_GOOGLE_CLIENT_ID');
 }
 
+let nativeGoogleAuthInitialized = false;
+
+function ensureNativeGoogleAuthInitialized(): void {
+  if (nativeGoogleAuthInitialized) return;
+  CapacitorGoogleAuth.initialize({
+    clientId: getGoogleClientId() || undefined,
+    scopes: ['profile', 'email'],
+    grantOfflineAccess: false,
+  });
+  nativeGoogleAuthInitialized = true;
+}
+
+async function signInWithGoogleNative(): Promise<GoogleUserProfile> {
+  ensureNativeGoogleAuthInitialized();
+
+  const user = await CapacitorGoogleAuth.signIn();
+
+  return {
+    id: user.id,
+    name: user.name || user.givenName || 'Google User',
+    givenName: user.givenName,
+    familyName: user.familyName,
+    email: user.email || '',
+    picture: user.imageUrl || '',
+  };
+}
+
 /**
  * Initiates Google OAuth Sign-In flow using Google Identity Services (GSI)
  * and retrieves the user's name, profile photo, and email.
  */
-export async function signInWithGoogle(): Promise<GoogleUserProfile> {
+async function signInWithGoogleWeb(): Promise<GoogleUserProfile> {
   const clientId = getGoogleClientId();
 
   if (!clientId || clientId.includes('YOUR_GOOGLE_CLIENT_ID')) {
@@ -181,9 +219,25 @@ export async function signInWithGoogle(): Promise<GoogleUserProfile> {
 }
 
 /**
+ * Initiates Google Sign-In, using the native Google Sign-In SDK when running
+ * as a packaged Capacitor app and the web GIS flow otherwise.
+ */
+export async function signInWithGoogle(): Promise<GoogleUserProfile> {
+  if (Capacitor.isNativePlatform()) {
+    return signInWithGoogleNative();
+  }
+  return signInWithGoogleWeb();
+}
+
+/**
  * Signs out of Google, revoking access token if available
  */
 export async function signOutFromGoogle(userEmail?: string): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    await CapacitorGoogleAuth.signOut();
+    return;
+  }
+
   if (lastAccessToken && window.google?.accounts?.oauth2?.revoke) {
     try {
       window.google.accounts.oauth2.revoke(lastAccessToken);

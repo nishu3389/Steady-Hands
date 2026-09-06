@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameResult, GameSettings, LeaderboardEntry, NavigationTab, UserProfile } from './types';
 import { storageService } from './services/storage';
-import { regionService } from './services/regionService';
+import { regionService, RegionInfo } from './services/regionService';
 import { submitScore } from './services/firestore';
 import { BottomNav } from './components/BottomNav';
 import { PlayScreen } from './components/PlayScreen';
@@ -22,10 +22,18 @@ export default function App() {
   const [isGameActive, setIsGameActive] = useState(false);
   const [gameSessionKey, setGameSessionKey] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [region, setRegion] = useState<RegionInfo>(() => regionService.getRegion());
 
-  // Fetch user location as soon as app launches & save locally
+  // Region detection (network/GPS/timezone) and the regional player-name
+  // pool it picks both run once here, at app launch, and are cached locally
+  // by regionService -- never redone on the Rank screen itself, so opening
+  // it is just reading an already-resolved value, no async work at all.
   useEffect(() => {
+    const unsub = regionService.subscribe((newRegion) => {
+      setRegion(newRegion);
+    });
     regionService.fetchAndSaveLocation();
+    return unsub;
   }, []);
 
   // Check first launch: show animated tutorial if not seen before
@@ -142,7 +150,7 @@ export default function App() {
           uid: profile.uid,
           displayName: profile.name,
           photoUrl: profile.avatarUrl,
-          countryCode: regionService.getRegion().code,
+          countryCode: region.code,
           difficulty: result.difficulty,
           score: result.finalScore,
           streak: updatedStreak,
@@ -250,6 +258,7 @@ export default function App() {
                 soundEnabled={settings.soundEnabled}
                 profile={profile}
                 onUpdateProfile={handleUpdateProfile}
+                region={region}
               />
             </motion.div>
           ) : (

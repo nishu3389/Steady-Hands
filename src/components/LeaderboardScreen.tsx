@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { LeaderboardEntry, UserProfile, DifficultyLevel } from '../types';
 import { soundService } from '../services/audio';
-import { regionService, RegionInfo } from '../services/regionService';
+import { RegionInfo } from '../services/regionService';
 import { signInWithGoogle } from '../services/googleAuth';
 import { fetchGlobalLeaderboard, GlobalLeaderboardEntry } from '../services/firestore';
 import { AdMimicBanner } from './AdMimicBanner';
@@ -26,6 +26,10 @@ interface LeaderboardScreenProps {
   soundEnabled: boolean;
   profile?: UserProfile;
   onUpdateProfile?: (profile: UserProfile) => void;
+  // Resolved once at app launch (see App.tsx) and passed down -- this screen
+  // does zero region-detection work of its own, just renders whatever was
+  // already cached.
+  region: RegionInfo;
 }
 
 type DifficultyFilter = 'all' | 'easy' | 'medium' | 'hard';
@@ -48,8 +52,8 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   soundEnabled,
   profile,
   onUpdateProfile,
+  region: currentRegion,
 }) => {
-  const [currentRegion, setCurrentRegion] = useState<RegionInfo>(regionService.getRegion());
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('all');
   const [copiedInvite, setCopiedInvite] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -60,17 +64,6 @@ export const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
   // rendering fake-only first and visibly reshuffling in real players a
   // moment later.
   const [realPlayers, setRealPlayers] = useState<GlobalLeaderboardEntry[] | null>(null);
-
-  // Subscribe to regionService updates (region picks which player name pool
-  // to display, but is never shown in the UI itself). Location detection
-  // itself already runs once at app launch (see App.tsx) -- re-triggering it
-  // on every visit to this tab was redundant work that also contributed to
-  // the visible reflow/flicker when switching tabs.
-  useEffect(() => {
-    return regionService.subscribe((newReg) => {
-      setCurrentRegion(newReg);
-    });
-  }, []);
 
   // Fetch the real global leaderboard once signed in, refreshed whenever the
   // difficulty filter changes. No-op for guests -- they never see this data.

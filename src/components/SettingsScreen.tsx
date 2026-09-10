@@ -17,6 +17,8 @@ import {
   Moon,
   Laptop,
   Vibrate,
+  Cpu,
+  Check,
 } from 'lucide-react';
 import { soundService } from '../services/audio';
 import { walkingDetector } from '../services/walkingDetector';
@@ -426,6 +428,41 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* App Engine Architecture Switcher */}
+      <section className="flex flex-col gap-2">
+        <h2 className="font-bold text-xl text-[#191c1e] dark:text-[#eff1f4]">App Engine</h2>
+        <div className="p-4 bg-white dark:bg-[#191c1e] rounded-2xl card-raised flex flex-col gap-3 border border-white/60 dark:border-transparent">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Cpu className="w-5 h-5 text-[#008080] dark:text-[#2dd4bf]" />
+              <span className="font-bold text-sm text-[#191c1e] dark:text-[#eff1f4]">Runtime Engine</span>
+            </div>
+            <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-[#008080]/10 text-[#008080] dark:text-[#2dd4bf] border border-[#008080]/20">
+              Web / Hybrid Active
+            </span>
+          </div>
+
+          <p className="text-xs text-[#404751] dark:text-[#c0c7d3] leading-relaxed">
+            Both the <strong>Capacitor Hybrid Engine</strong> and the <strong>Native Jetpack Compose Engine</strong> are preserved side-by-side. You can switch between them anytime.
+          </p>
+
+          <button
+            onClick={() => {
+              const cap = (window as any).Capacitor;
+              if (cap?.Plugins?.EngineSwitch?.switchToCompose) {
+                cap.Plugins.EngineSwitch.switchToCompose();
+              } else {
+                alert('Native Jetpack Compose engine is ready! In Android Studio or on device, launch ComposeMainActivity.');
+              }
+            }}
+            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#008080] to-[#005f9e] hover:from-[#0f766e] hover:to-[#0284c7] text-white font-semibold text-xs shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99]"
+          >
+            <Cpu className="w-4 h-4" />
+            Switch to Native Jetpack Compose Engine
+          </button>
         </div>
       </section>
 

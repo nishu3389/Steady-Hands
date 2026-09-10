@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(LocationResolverPlugin.class);
         registerPlugin(NetworkRegionPlugin.class);
+        registerPlugin(EngineSwitchPlugin.class);
         super.onCreate(savedInstanceState);
         // The vertical line seen on the right edge while scrolling is
         // Android's native WebView scrollbar overlay — it's drawn by the

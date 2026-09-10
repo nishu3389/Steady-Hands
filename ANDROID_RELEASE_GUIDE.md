@@ -4,7 +4,22 @@ This project is fully prepared for Android packaging and Google Play Store deplo
 
 ---
 
-## 🚀 Quickest Method: Capacitor (Native Android APK/AAB)
+## 📦 Instant APK Download via GitHub Actions (No Setup Required!)
+
+A GitHub Actions workflow (`.github/workflows/build-apk.yml`) is included in this repository. It automatically builds the Android APK in the cloud whenever code is pushed.
+
+### How to get your APK:
+1. **Push your code to GitHub** (or export from AI Studio to GitHub).
+2. Go to your repository on [GitHub.com](https://github.com).
+3. Click the **Actions** tab at the top.
+4. Click on the latest workflow run named **Build Android APK** (or trigger it manually via **Run workflow**).
+5. Once it finishes (typically 2–3 minutes), scroll down to the **Artifacts** section at the bottom of the page.
+6. Click **`SteadyHands-Debug-APK`** to download your ready-to-install `.apk`!
+7. Open the downloaded file on your Android phone to install and test immediately.
+
+---
+
+## 🚀 Local Build Method: Capacitor (Native Android APK/AAB)
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (v18+)
@@ -66,6 +81,39 @@ The AdMob App ID and Banner Ad Unit ID are configured in `AndroidManifest.xml` a
 - **Banner Ad Unit ID**: `ca-app-pub-4833668827116420/8214685836`
 - **Slot ID**: `8214685836`
 - Placed on the Home screen directly below the duration selector.
+
+---
+
+### 🔄 Dual Architecture: Switching Engines Anytime
+
+This project preserves **both engines** side-by-side in the same codebase:
+
+1. **Native Jetpack Compose Engine (`ComposeMainActivity.kt`)**
+   - 100% native Kotlin Jetpack Compose & Material 3.
+   - Built-in animated 4-step interactive tutorial (`InteractiveTutorialDialog.kt`).
+   - Hardware sensor fusion engine (`SensorFusionEngine.kt`) & 3D liquid physics Canvas.
+   - Switch back to WebView anytime via top-bar "Web Mode" or Settings.
+
+2. **Capacitor Hybrid Engine (`MainActivity.java` + React + Three.js)**
+   - Complete Web / Capacitor implementation with Three.js bowl, audio, and sync.
+   - Switch to Native Compose anytime via Settings > "App Engine" card.
+
+#### How to Switch Anytime:
+- **In-App (One Tap)**:
+  - Inside Web: Go to **Settings > App Engine** and tap **"Switch to Native Jetpack Compose Engine"**.
+  - Inside Compose: Tap **"Web Mode"** in the top bar or go to **Settings > App Engine Mode**.
+- **Via Terminal (ADB)**:
+  ```bash
+  # Launch Native Compose Engine:
+  adb shell am start -n "com.steadyhands.balance/.ComposeMainActivity"
+
+  # Launch Capacitor WebView Engine:
+  adb shell am start -n "com.steadyhands.balance/.MainActivity"
+  ```
+- **In Android Studio**:
+  In **Run/Debug Configurations**, set **Launch Options > Specified Activity** to either `com.steadyhands.balance.ComposeMainActivity` or `com.steadyhands.balance.MainActivity`.
+
+---
 
 
 ---

@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -18,27 +17,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.steadyhands.balance.MainActivity
 import com.steadyhands.balance.R
 import com.steadyhands.balance.sensor.SensorFusionEngine
+import com.steadyhands.balance.ui.auth.AuthState
 import com.steadyhands.balance.ui.components.AdMobBannerAd
 import com.steadyhands.balance.ui.components.SegmentActivePill
 import com.steadyhands.balance.ui.components.SegmentedTrack
 import com.steadyhands.balance.ui.components.neumorphicDualShadow
 import com.steadyhands.balance.ui.theme.*
+import kotlinx.coroutines.launch
 
-private enum class ThemeMode { DAY, NIGHT, AUTO }
 private enum class TiltSensitivity(val label: String, val display: String, val multiplier: Float) {
     GENTLE("Gentle", "Gentle (0.75x)", 0.75f),
     NORMAL("Normal", "Standard (1.0x)", 1.0f),
@@ -51,13 +54,15 @@ fun SettingsScreen(
     onOpenTutorial: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
+    val coroutineScope = rememberCoroutineScope()
+    val themeMode = ThemeState.mode
+    val isDark = resolveIsDarkTheme()
+    val profile = AuthState.profile
 
-    var themeMode by remember { mutableStateOf(ThemeMode.AUTO) }
     var soundEnabled by remember { mutableStateOf(true) }
     var tiltSensitivity by remember { mutableStateOf(TiltSensitivity.NORMAL) }
-    var isSignedIn by remember { mutableStateOf(true) }
-    var playerName by remember { mutableStateOf("Player") }
+    var isSigningIn by remember { mutableStateOf(false) }
+    var authError by remember { mutableStateOf<String?>(null) }
 
     val cardShadowDark = if (isDark) Color.Black.copy(alpha = 0.40f) else Color(0xFFA3B1C6).copy(alpha = 0.40f)
     val cardShadowLight = if (isDark) Color(0xFF3A4550).copy(alpha = 0.30f) else Color.White.copy(alpha = 0.85f)
@@ -72,7 +77,7 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
         // ---- How to Play ----
-        SettingsSection(title = "How to Play") {
+        SettingsSection(title = "How to Play", isDark = isDark) {
             SettingsCard(cardBg, cardShadowDark, cardShadowLight) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
                     Box(
@@ -118,7 +123,7 @@ fun SettingsScreen(
         }
 
         // ---- Appearance ----
-        SettingsSection(title = "Appearance") {
+        SettingsSection(title = "Appearance", isDark = isDark) {
             SettingsCard(cardBg, cardShadowDark, cardShadowLight) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(
@@ -167,7 +172,7 @@ fun SettingsScreen(
                             label = "Day",
                             isActive = themeMode == ThemeMode.DAY,
                             isDark = isDark
-                        ) { themeMode = ThemeMode.DAY }
+                        ) { ThemeState.setMode(context, ThemeMode.DAY) }
                         ThreeWayOption(
                             modifier = Modifier.weight(1f),
                             iconRes = R.drawable.ic_lucide_moon,
@@ -175,7 +180,7 @@ fun SettingsScreen(
                             label = "Night",
                             isActive = themeMode == ThemeMode.NIGHT,
                             isDark = isDark
-                        ) { themeMode = ThemeMode.NIGHT }
+                        ) { ThemeState.setMode(context, ThemeMode.NIGHT) }
                         ThreeWayOption(
                             modifier = Modifier.weight(1f),
                             iconRes = R.drawable.ic_lucide_laptop,
@@ -183,14 +188,14 @@ fun SettingsScreen(
                             label = "Auto",
                             isActive = themeMode == ThemeMode.AUTO,
                             isDark = isDark
-                        ) { themeMode = ThemeMode.AUTO }
+                        ) { ThemeState.setMode(context, ThemeMode.AUTO) }
                     }
                 }
             }
         }
 
         // ---- Audio ---- (Haptic Vibration row intentionally omitted)
-        SettingsSection(title = "Audio") {
+        SettingsSection(title = "Audio", isDark = isDark) {
             SettingsCard(cardBg, cardShadowDark, cardShadowLight) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -226,7 +231,7 @@ fun SettingsScreen(
         }
 
         // ---- Controls ----
-        SettingsSection(title = "Controls") {
+        SettingsSection(title = "Controls", isDark = isDark) {
             SettingsCard(cardBg, cardShadowDark, cardShadowLight) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
@@ -281,7 +286,7 @@ fun SettingsScreen(
 
         // ---- App Engine (temporary — just a mode-switch button, not
         // styled to match the reference since this section is a stopgap) ----
-        SettingsSection(title = "App Engine") {
+        SettingsSection(title = "App Engine", isDark = isDark) {
             SettingsCard(cardBg, cardShadowDark, cardShadowLight) {
                 SettingsPrimaryButton(
                     label = "Switch to Capacitor WebView Engine",
@@ -298,7 +303,7 @@ fun SettingsScreen(
         }
 
         // ---- Account ----
-        SettingsSection(title = "Account") {
+        SettingsSection(title = "Account", isDark = isDark) {
             SettingsCard(cardBg, cardShadowDark, cardShadowLight) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -311,30 +316,39 @@ fun SettingsScreen(
                             .background(if (isDark) Color(0xFF2D3133) else Color(0xFFE0E3E6)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_user),
-                            contentDescription = null,
-                            tint = TextSecondaryLight,
-                            modifier = Modifier.size(28.dp)
-                        )
+                        if (profile.avatarUrl != null) {
+                            AsyncImage(
+                                model = profile.avatarUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_user),
+                                contentDescription = null,
+                                tint = TextSecondaryLight,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (isSignedIn) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (profile.isSignedIn) {
+                        Text(
+                            text = profile.name,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) TextPrimaryDark else TextPrimaryLight
+                        )
+                        if (profile.email != null) {
                             Text(
-                                text = playerName,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDark) TextPrimaryDark else TextPrimaryLight
-                            )
-                            Text(
-                                text = "edit",
+                                text = profile.email,
                                 fontSize = 12.sp,
-                                color = if (isDark) BrandBlueDark else BrandBluePrimary,
-                                textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-                                modifier = Modifier.clickable { /* rename flow not wired yet */ }
+                                color = if (isDark) TextMutedDark else TextSecondaryLight
                             )
                         }
                         Spacer(modifier = Modifier.height(2.dp))
@@ -356,6 +370,16 @@ fun SettingsScreen(
                         )
                     }
 
+                    if (authError != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = authError.orEmpty(),
+                            fontSize = 12.sp,
+                            color = Color(0xFFDC2626),
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Row(
@@ -371,9 +395,23 @@ fun SettingsScreen(
                             )
                             .clip(RoundedCornerShape(28.dp))
                             .background(cardBg)
-                            .clickable {
-                                isSignedIn = !isSignedIn
-                                if (!isSignedIn) playerName = "Guest Player"
+                            .clickable(enabled = !isSigningIn) {
+                                authError = null
+                                if (profile.isSignedIn) {
+                                    coroutineScope.launch {
+                                        isSigningIn = true
+                                        runCatching { AuthState.signOut(context) }
+                                            .onFailure { authError = it.message ?: "Sign-out failed" }
+                                        isSigningIn = false
+                                    }
+                                } else {
+                                    coroutineScope.launch {
+                                        isSigningIn = true
+                                        runCatching { AuthState.signIn(context) }
+                                            .onFailure { authError = it.message ?: "Sign-in failed" }
+                                        isSigningIn = false
+                                    }
+                                }
                             }
                             .padding(vertical = 13.dp),
                         horizontalArrangement = Arrangement.Center,
@@ -386,7 +424,12 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = if (isSignedIn) "Sign out of Google" else "Sign in with Google",
+                            text = when {
+                                isSigningIn && profile.isSignedIn -> "Signing out..."
+                                isSigningIn -> "Signing in..."
+                                profile.isSignedIn -> "Sign out of Google"
+                                else -> "Sign in with Google"
+                            },
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = if (isDark) TextPrimaryDark else TextPrimaryLight
@@ -415,13 +458,13 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun SettingsSection(title: String, isDark: Boolean, content: @Composable ColumnScope.() -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
             fontSize = 19.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isSystemInDarkTheme()) TextPrimaryDark else TextPrimaryLight
+            color = if (isDark) TextPrimaryDark else TextPrimaryLight
         )
         content()
     }

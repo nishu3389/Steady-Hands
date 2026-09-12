@@ -51,6 +51,15 @@ dependencies {
     implementation "com.google.android.gms:play-services-location:21.3.0"
     implementation "com.google.android.gms:play-services-ads:23.6.0"
 
+    // Google Sign-In + Firebase Auth (native Compose sign-in flow)
+    def firebaseBom = platform('com.google.firebase:firebase-bom:33.7.0')
+    implementation firebaseBom
+    implementation 'com.google.firebase:firebase-auth-ktx'
+    implementation 'androidx.credentials:credentials:1.3.0'
+    implementation 'androidx.credentials:credentials-play-services-auth:1.3.0'
+    implementation 'com.google.android.libraries.identity.googleid:googleid:1.1.1'
+    implementation 'io.coil-kt:coil-compose:2.7.0'
+
     // Jetpack Compose & Material 3
     def composeBom = platform('androidx.compose:compose-bom:2024.10.01')
     implementation composeBom

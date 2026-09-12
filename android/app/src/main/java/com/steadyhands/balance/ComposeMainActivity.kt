@@ -8,11 +8,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.google.android.gms.ads.MobileAds
 import com.steadyhands.balance.ui.SteadyHandsApp
+import com.steadyhands.balance.ui.auth.AuthState
 import com.steadyhands.balance.ui.theme.SteadyHandsTheme
+import com.steadyhands.balance.ui.theme.ThemeState
 
 class ComposeMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ThemeState.init(this)
+        AuthState.init(this)
         MobileAds.initialize(this) {}
         setContent {
             SteadyHandsTheme {

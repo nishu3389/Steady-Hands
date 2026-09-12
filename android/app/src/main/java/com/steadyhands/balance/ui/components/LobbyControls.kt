@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,7 +34,7 @@ fun HomeRecordCard(
     recordScore: Int,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
     val cardBg = if (isDark) Color(0xFF191C1E) else Color.White
 
     Box(
@@ -112,7 +111,7 @@ fun HomeRecordCard(
 fun MindfulCarouselCard(
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
     var isExpanded by remember { mutableStateOf(false) }
     var activeIndex by remember { mutableIntStateOf(0) }
 
@@ -347,7 +346,7 @@ fun DifficultySelector(
     onSelectDifficulty: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
     val options = listOf("easy" to "Easy", "medium" to "Medium", "hard" to "Hard")
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -417,7 +416,7 @@ fun DurationSelector(
     onSelectDurationSec: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
     val options = listOf(45 to "45s", 60 to "60s", 90 to "90s")
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {

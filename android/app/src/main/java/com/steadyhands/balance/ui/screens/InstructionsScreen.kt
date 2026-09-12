@@ -2,7 +2,6 @@ package com.steadyhands.balance.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -56,7 +55,7 @@ private val HOW_TO_PLAY_STEPS = listOf(
 fun InstructionsScreen(
     onReplayTutorial: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
     var activeTab by remember { mutableStateOf(InfoTab.HOW_TO_PLAY) }
 
     Column(

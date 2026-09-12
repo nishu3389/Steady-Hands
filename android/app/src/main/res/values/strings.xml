@@ -4,4 +4,15 @@
     <string name="title_activity_main">Steady Hands</string>
     <string name="package_name">com.steadyhands.balance</string>
     <string name="custom_url_scheme">com.steadyhands.balance</string>
+
+    <!--
+      TODO: paste the "Web client (auto created by Google Service)" OAuth
+      client ID for the steadyhands-5cf12 Firebase project here. Find it at
+      Firebase Console -> Authentication -> Sign-in method -> Google ->
+      Web SDK configuration -> Web client ID (same value that would land in
+      google-services.json under client[].oauth_client[] as client_type 3).
+      Native Google Sign-In cannot request a Firebase-compatible ID token
+      without this value.
+    -->
+    <string name="google_sign_in_web_client_id" translatable="false">REPLACE_WITH_FIREBASE_WEB_CLIENT_ID</string>
 </resources>

@@ -5,7 +5,6 @@ import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,12 +46,11 @@ enum class AppTab(val label: String, val screenTitle: String, val icon: ImageVec
 @Composable
 fun SteadyHandsApp() {
     val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
     val sensorEngine = remember { SensorFusionEngine(context) }
 
     var currentTab by remember { mutableStateOf(AppTab.PLAY) }
     var showTutorial by remember { mutableStateOf(false) }
-    var isGameActive by remember { mutableStateOf(false) }
 
     // Check first launch tutorial preference
     LaunchedEffect(Unit) {
@@ -65,14 +63,13 @@ fun SteadyHandsApp() {
 
     Scaffold(
         bottomBar = {
-            if (!isGameActive) {
-                // Bottom Nav Bar: a plain, mostly-flat bar (matching the
-                // reference — no carved-in groove across the whole bar), with
-                // the selected tab popping up as the same [SegmentActivePill]
-                // raised chip used by the Difficulty/Duration selectors, so
-                // the "selected" language is shared while the bar itself
-                // stays light.
-                Box(
+            // Bottom Nav Bar: a plain, mostly-flat bar (matching the
+            // reference — no carved-in groove across the whole bar), with
+            // the selected tab popping up as the same [SegmentActivePill]
+            // raised chip used by the Difficulty/Duration selectors, so
+            // the "selected" language is shared while the bar itself
+            // stays light.
+            Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
@@ -171,7 +168,6 @@ fun SteadyHandsApp() {
                         }
                     }
                 }
-            }
         },
         containerColor = if (isDark) CanvasBgDark else CanvasBgLight
     ) { paddingValues ->
@@ -182,17 +178,15 @@ fun SteadyHandsApp() {
         ) {
             when (currentTab) {
                 AppTab.PLAY -> PlayScreen(
-                    sensorEngine = sensorEngine,
-                    onOpenTutorial = { showTutorial = true },
-                    onGameActiveChanged = { active -> isGameActive = active }
+                    onOpenTutorial = { showTutorial = true }
                 )
                 AppTab.INFO -> InstructionsScreen(
-                    onReplayTutorial = { showTutorial = true }
+                    onReplayTutorial = { launchWebTutorial(context) }
                 )
                 AppTab.RANK -> LeaderboardScreen(onPlayNow = { currentTab = AppTab.PLAY })
                 AppTab.SET -> SettingsScreen(
                     sensorEngine = sensorEngine,
-                    onOpenTutorial = { showTutorial = true }
+                    onOpenTutorial = { launchWebTutorial(context) }
                 )
             }
 
@@ -204,4 +198,17 @@ fun SteadyHandsApp() {
             }
         }
     }
+}
+
+// Settings' and Instructions' tutorial buttons show the web app's own
+// InteractiveTutorialModal instead of the native reimplementation above --
+// launched full-screen, with nothing else visible, via the "open_tutorial"
+// intent extra (read by EngineSwitchPlugin.getLaunchOptions on the web
+// side), so it renders standalone rather than mounting the whole app shell.
+private fun launchWebTutorial(context: Context) {
+    val intent = Intent(context, MainActivity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        putExtra(MainActivity.EXTRA_OPEN_TUTORIAL, true)
+    }
+    context.startActivity(intent)
 }

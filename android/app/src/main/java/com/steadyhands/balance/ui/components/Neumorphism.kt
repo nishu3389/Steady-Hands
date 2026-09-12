@@ -3,7 +3,6 @@ package com.steadyhands.balance.ui.components
 import android.graphics.BlurMaskFilter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.offset
@@ -36,7 +35,7 @@ import com.steadyhands.balance.ui.theme.*
 fun NeuRaisedCard(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(18.dp),
-    isDark: Boolean = isSystemInDarkTheme(),
+    isDark: Boolean = resolveIsDarkTheme(),
     content: @Composable BoxScope.() -> Unit
 ) {
     val darkShadowColor = if (isDark) Color(0xFF0C1014).copy(alpha = 0.85f) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
@@ -141,7 +140,7 @@ fun SegmentedTrack(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 18.dp,
     shape: Shape = RoundedCornerShape(cornerRadius),
-    isDark: Boolean = isSystemInDarkTheme(),
+    isDark: Boolean = resolveIsDarkTheme(),
     content: @Composable BoxScope.() -> Unit
 ) {
     val trackBg = if (isDark) Color(0xFF1A1F24) else Color(0xFFE7EBF1)
@@ -178,7 +177,7 @@ fun SegmentActivePill(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 14.dp,
     shape: Shape = RoundedCornerShape(cornerRadius),
-    isDark: Boolean = isSystemInDarkTheme(),
+    isDark: Boolean = resolveIsDarkTheme(),
     content: @Composable BoxScope.() -> Unit
 ) {
     val pillBg = if (isDark) Color(0xFF262C33) else Color.White
@@ -209,7 +208,7 @@ fun NeuCard(
     elevation: Dp = 6.dp,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
     val bgColor = if (isDark) ZenDarkCard else ZenLightCard
     val borderColor = if (isDark) ZenDarkBorder.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.85f)
     val shadowColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow
@@ -236,7 +235,7 @@ fun NeuInset(
     shape: Shape = RoundedCornerShape(12.dp),
     content: @Composable BoxScope.() -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
     val insetBg = if (isDark) ZenDarkBg.copy(alpha = 0.85f) else ZenLightBg.copy(alpha = 0.85f)
     val borderColor = if (isDark) ZenDarkBorder.copy(alpha = 0.4f) else ZenLightBorder.copy(alpha = 0.6f)
 

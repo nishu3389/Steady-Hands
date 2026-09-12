@@ -3,7 +3,6 @@ package com.steadyhands.balance.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -64,7 +63,7 @@ private val SAMPLE_ENTRIES = listOf(
 
 @Composable
 fun LeaderboardScreen(onPlayNow: () -> Unit = {}) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
     var difficultyFilter by remember { mutableStateOf<RankDifficulty?>(null) }
 
     val filteredEntries = remember(difficultyFilter) {

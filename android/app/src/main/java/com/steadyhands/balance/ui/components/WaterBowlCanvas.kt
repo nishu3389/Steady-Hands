@@ -2,7 +2,6 @@ package com.steadyhands.balance.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -35,7 +34,7 @@ fun WaterBowlCanvas(
     isSpilling: Boolean,
     modifier: Modifier = Modifier.size(280.dp)
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = resolveIsDarkTheme()
 
     // Smooth physics lerp
     val animatedPitch by animateFloatAsState(

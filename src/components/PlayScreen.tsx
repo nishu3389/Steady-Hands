@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { DifficultyLevel, DurationOption, GameResult, GameSettings, UserProfile } from '../types';
-import { Flame, Play, ShieldAlert, Sparkles, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Footprints, Activity, Navigation, MapPin, Volume2, VolumeX } from 'lucide-react';
+import { Flame, Play, ShieldAlert, CheckCircle2, ChevronLeft, X, AlertTriangle, ChevronRight, Footprints, Navigation, MapPin } from 'lucide-react';
 import { ThreeBowlCanvas } from './ThreeBowlCanvas';
 import { soundService } from '../services/audio';
-import { MINDFUL_BENEFITS } from '../data/mindfulBenefits';
 import { walkingDetector, formatWalkingDistance } from '../services/walkingDetector';
 import { LocationResolver } from '../services/locationResolver';
-import { adMobService } from '../services/adMobService';
-import { AdMimicBanner } from './AdMimicBanner';
 
 interface PlayScreenProps {
   settings: GameSettings;
@@ -94,35 +91,15 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   onGameActiveChange,
   onQuitGame,
 }) => {
-  // Lobby Settings
-  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>('medium');
-  const [selectedDuration, setSelectedDuration] = useState<DurationOption>(settings.defaultDuration || 60);
-  const [showMindfulTip, setShowMindfulTip] = useState(false);
-  const [activeBenefitIndex, setActiveBenefitIndex] = useState(0);
+  // No lobby UI to change these anymore -- fixed for the lifetime of the mount.
+  const [selectedDifficulty] = useState<DifficultyLevel>('medium');
+  const [selectedDuration] = useState<DurationOption>(settings.defaultDuration || 60);
 
-  // Game Phases: 'lobby' -> 'calibrating' (3s hold in center) -> 'transitioning' -> 'playing'
+  // Game Phases: 'lobby' (idle, no UI -- see startCalibration below, invoked
+  // automatically on mount) -> 'calibrating' (3s hold in center) ->
+  // 'transitioning' -> 'playing'
   const [gamePhase, setGamePhase] = useState<GamePhase>('lobby');
 
-  // Native AdMob Banner Lifecycle: show on home lobby, hide during active gameplay/calibration
-  useEffect(() => {
-    if (gamePhase === 'lobby') {
-      adMobService.showBanner();
-    } else {
-      adMobService.hideBanner();
-    }
-    return () => {
-      adMobService.hideBanner();
-    };
-  }, [gamePhase]);
-
-  // Auto-cycle through mindful benefits sequentially every 6 seconds when expanded in lobby
-  useEffect(() => {
-    if (!showMindfulTip || gamePhase !== 'lobby') return;
-    const interval = setInterval(() => {
-      setActiveBenefitIndex((prev) => (prev + 1) % MINDFUL_BENEFITS.length);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [showMindfulTip, gamePhase]);
   const [isResolvingLocation, setIsResolvingLocation] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
@@ -529,6 +506,14 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     }
   };
 
+  // No lobby UI -- calibration begins automatically on mount (fires once;
+  // returning here later, e.g. after "Try Again", is a fresh mount via the
+  // parent's `key` prop, so this runs again correctly each time).
+  useEffect(() => {
+    startCalibration();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Main Loop: handles calibration 3s countdown & main physics — this is
   // the WaterBowlProject tick(): updateKeyboardTilt() + updateBowlTiltFollow()
   // + computeTiltAndSpill(), every frame, for both calibration and play.
@@ -730,30 +715,11 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     };
   }, [gamePhase, selectedDifficulty, selectedDuration, settings, finishGame]);
 
-  // Difficulty change
-  const handleDifficultySelect = (diff: DifficultyLevel) => {
-    if (settings.soundEnabled) soundService.playClick();
-    setSelectedDifficulty(diff);
-  };
-
-  // Duration change
-  const handleDurationSelect = (dur: DurationOption) => {
-    if (settings.soundEnabled) soundService.playClick();
-    setSelectedDuration(dur);
-  };
-
   const calibTargetHold = 2.4;
   const holdFraction = Math.min(1, holdProgress / calibTargetHold);
   const calibPercent = Math.round(holdFraction * 100);
   const circleCircumference = 2 * Math.PI * 92; // for 200px container (r=92)
   const strokeOffset = circleCircumference * (1 - holdFraction);
-
-  // Difficulty display label for lobby
-  const difficultyDisplay = selectedDifficulty.toUpperCase();
-
-  // Current Best Score (Mind-Body Steadiness %)
-  const currentBestScore =
-    highScores[selectedDifficulty] || (selectedDifficulty === 'easy' ? 94 : selectedDifficulty === 'medium' ? 91 : 88);
 
   // Safe-zone circle size for the current difficulty, in each dial context.
   const innerDiaPlayPx = RADAR_INNER_DIA_PX[selectedDifficulty];
@@ -1193,253 +1159,13 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   }
 
   // ----------------------------------------------------
-  // RENDER: LOBBY VIEW (matching exact light mode design)
+  // RENDER: IDLE STATE -- no lobby UI. Calibration is kicked off
+  // automatically on mount (see the effect above), so this only ever
+  // shows for an instant, or while the GPS/location permission check it
+  // triggers is in flight or was denied.
   // ----------------------------------------------------
   return (
-    <div className="flex flex-col w-full max-w-sm mx-auto items-center px-6 pt-3 pb-24 gap-4 select-none">
-      {/* Best Steadiness Record Card */}
-      <div className="w-full bg-white dark:bg-[#191c1e] rounded-2xl p-4 flex flex-col items-center justify-center card-raised border border-white/60 dark:border-transparent">
-        <span className="text-[12px] font-bold text-[#404751] dark:text-[#c0c7d3] mb-0.5 tracking-[0.1em] uppercase">
-          {difficultyDisplay} STEADINESS RECORD
-        </span>
-        <div className="flex items-baseline justify-center gap-1">
-          <span className="text-[46px] leading-[52px] font-[800] text-[#005f9e] dark:text-[#9dcaff] tracking-tight">
-            {Math.round(currentBestScore)}
-          </span>
-          <span className="text-xl font-bold text-[#005f9e] dark:text-[#9dcaff]">
-            %
-          </span>
-        </div>
-        <span className="text-[11px] font-semibold text-[#707882] dark:text-[#a0a8b4] tracking-wide mt-0.5">
-          Body & Posture Stability
-        </span>
-      </div>
-
-      {/* Option 3: Collapsible Mindful Health Card with Sequential Carousel */}
-      <div className="w-full">
-        <button
-          onClick={() => {
-            if (settings.soundEnabled) soundService.playClick();
-            setShowMindfulTip((prev) => !prev);
-          }}
-          className="w-full p-2.5 px-3.5 rounded-2xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/15 dark:border-[#9dcaff]/20 flex items-center justify-between transition-all hover:bg-[#e4effa] dark:hover:bg-[#1b2e40] text-left cursor-pointer shadow-sm"
-        >
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#005f9e] dark:text-[#9dcaff] shrink-0" />
-            <span className="text-xs font-bold text-[#005f9e] dark:text-[#9dcaff]">
-              Why Steady Hands? ({activeBenefitIndex + 1}/{MINDFUL_BENEFITS.length} Mind & Body)
-            </span>
-          </div>
-          {showMindfulTip ? (
-            <ChevronUp className="w-4 h-4 text-[#005f9e] dark:text-[#9dcaff]" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-[#005f9e] dark:text-[#9dcaff]" />
-          )}
-        </button>
-
-        {showMindfulTip && (
-          <div className="mt-2 p-4 rounded-2xl bg-white dark:bg-[#191c1e] card-raised border border-white/60 dark:border-transparent flex flex-col gap-3 text-left animate-in fade-in duration-200">
-            {/* Active Sequential Benefit Card */}
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/10 dark:border-[#9dcaff]/15 shrink-0 shadow-inner">
-                {MINDFUL_BENEFITS[activeBenefitIndex].icon('w-4 h-4 text-[#005f9e] dark:text-[#9dcaff]')}
-              </div>
-              <div className="flex flex-col flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-[#005f9e]/10 dark:bg-[#9dcaff]/15 text-[#005f9e] dark:text-[#9dcaff] shrink-0">
-                    {MINDFUL_BENEFITS[activeBenefitIndex].tagline}
-                  </span>
-                </div>
-                <h4 className="font-extrabold text-sm text-[#191c1e] dark:text-[#eff1f4] leading-snug">
-                  {MINDFUL_BENEFITS[activeBenefitIndex].title}
-                </h4>
-                <p className="text-xs text-[#5a626f] dark:text-[#a0a8b4] leading-relaxed mt-1.5">
-                  {MINDFUL_BENEFITS[activeBenefitIndex].description}
-                </p>
-              </div>
-            </div>
-
-            {/* Sequential Carousel Controls & Progress Dots */}
-            <div className="flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/5">
-              <div className="flex items-center gap-1 max-w-[170px] overflow-hidden">
-                {MINDFUL_BENEFITS.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      if (settings.soundEnabled) soundService.playClick();
-                      setActiveBenefitIndex(idx);
-                    }}
-                    className={`h-1.5 rounded-full transition-all duration-200 cursor-pointer ${
-                      idx === activeBenefitIndex
-                        ? 'w-5 bg-[#005f9e] dark:bg-[#9dcaff]'
-                        : 'w-1.5 bg-black/15 dark:bg-white/15 hover:bg-black/30 dark:hover:bg-white/30'
-                    }`}
-                    aria-label={`Go to benefit ${idx + 1}`}
-                  />
-                ))}
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => {
-                    if (settings.soundEnabled) soundService.playClick();
-                    setActiveBenefitIndex(
-                      (prev) => (prev - 1 + MINDFUL_BENEFITS.length) % MINDFUL_BENEFITS.length
-                    );
-                  }}
-                  className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-[#404751] dark:text-[#c0c7d3] active:scale-95 transition-all cursor-pointer"
-                  aria-label="Previous insight"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    if (settings.soundEnabled) soundService.playClick();
-                    setActiveBenefitIndex((prev) => (prev + 1) % MINDFUL_BENEFITS.length);
-                  }}
-                  className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-[#404751] dark:text-[#c0c7d3] active:scale-95 transition-all cursor-pointer"
-                  aria-label="Next insight"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Center Stylish Start Button with Ambient Glow & Rotating Circle Orbit */}
-      <div className="w-full flex items-center justify-center py-2 relative my-1">
-        <div className="relative w-56 h-56 flex items-center justify-center">
-          {/* Radiant Ambient Glow Behind Button */}
-          <div className="absolute inset-1 rounded-full bg-gradient-to-tr from-[#005f9e]/35 via-[#00a8ff]/30 to-[#f59e0b]/25 dark:from-[#0078c6]/50 dark:via-[#38bdf8]/40 dark:to-[#fbbf24]/30 blur-2xl animate-pulse-glow pointer-events-none" />
-
-          {/* Primary Rotating Orbit Ring with Particles */}
-          <div className="absolute inset-0 w-full h-full pointer-events-none animate-spin-slow flex items-center justify-center">
-            <svg className="w-full h-full" viewBox="0 0 224 224">
-              <defs>
-                <linearGradient id="orbitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#005f9e" />
-                  <stop offset="50%" stopColor="#38bdf8" />
-                  <stop offset="100%" stopColor="#f59e0b" />
-                </linearGradient>
-              </defs>
-              <circle
-                cx="112"
-                cy="112"
-                r="100"
-                fill="none"
-                stroke="url(#orbitGrad)"
-                strokeWidth="2"
-                strokeDasharray="14 10 28 8"
-                strokeLinecap="round"
-                opacity="0.85"
-              />
-              <circle
-                cx="212"
-                cy="112"
-                r="4.5"
-                fill="#38bdf8"
-                className="drop-shadow-[0_0_8px_rgba(56,189,248,0.9)]"
-              />
-              <circle
-                cx="12"
-                cy="112"
-                r="3.5"
-                fill="#f59e0b"
-                className="drop-shadow-[0_0_8px_rgba(245,158,11,0.9)]"
-              />
-            </svg>
-          </div>
-
-          {/* Secondary Counter-Rotating Accent Ring */}
-          <div className="absolute inset-4 rounded-full border border-dashed border-[#005f9e]/30 dark:border-[#9dcaff]/30 animate-spin-reverse-slow pointer-events-none" />
-
-          {/* Interactive Start Button */}
-          <button
-            onClick={startCalibration}
-            className="w-36 h-36 sm:w-40 sm:h-40 rounded-full relative z-10 bg-white dark:bg-[#191c1e] card-raised dark:neumorphic-raised flex flex-col items-center justify-center gap-1 text-[#005f9e] dark:text-[#9dcaff] cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 group border border-white/90 dark:border-white/10 active:neumorphic-inset"
-            aria-label="Start Game"
-          >
-            {/* Subtle Inner Concentric Ring */}
-            <div className="absolute inset-2.5 rounded-full border border-[#005f9e]/15 dark:border-[#9dcaff]/15 pointer-events-none" />
-
-            <div className="w-10 h-10 rounded-full bg-[#005f9e]/10 dark:bg-[#9dcaff]/15 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
-              <Play className="w-5 h-5 fill-current ml-0.5" />
-            </div>
-
-            <span className="text-[18px] sm:text-[20px] font-[800] tracking-[0.16em] uppercase text-[#005f9e] dark:text-[#9dcaff] drop-shadow-sm">
-              START
-            </span>
-
-            <span className="text-[9px] font-bold text-[#707882] dark:text-[#a0a8b4] tracking-[0.12em] uppercase">
-              {selectedDuration}s · {selectedDifficulty}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Controls Section */}
-      <div className="w-full flex flex-col gap-5">
-        {/* Difficulty Selector */}
-        <div className="flex flex-col gap-2.5">
-          <span className="text-[12px] font-bold text-[#404751] dark:text-[#c0c7d3] pl-2 tracking-[0.1em] uppercase">
-            DIFFICULTY
-          </span>
-
-          <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 neumorphic-inset flex items-center justify-between">
-            {[
-              { key: 'easy', label: 'Easy' },
-              { key: 'medium', label: 'Medium' },
-              { key: 'hard', label: 'Hard' },
-            ].map(({ key, label }) => {
-              const isActive = selectedDifficulty === key;
-              return (
-                <button
-                  key={key}
-                  onClick={() => handleDifficultySelect(key as DifficultyLevel)}
-                  className={`flex-1 py-2.5 rounded-full font-medium text-base transition-all duration-200 cursor-pointer text-center mx-1 relative ${
-                    isActive
-                      ? 'neumorphic-inset bg-[#ffdea8] dark:bg-[#5e4200] text-[#5e4200] dark:text-[#ffdea8] font-bold shadow-inner'
-                      : 'bg-white dark:bg-[#191c1e] text-[#404751] dark:text-[#c0c7d3] shadow-[0_2px_6px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-none dark:neumorphic-raised hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Duration Selector */}
-        <div className="flex flex-col gap-2.5">
-          <span className="text-[12px] font-bold text-[#404751] dark:text-[#c0c7d3] pl-2 tracking-[0.1em] uppercase">
-            DURATION
-          </span>
-          <div className="w-full bg-[#e9edf2] dark:bg-[#162B3B] rounded-full p-1.5 neumorphic-inset flex items-center justify-between">
-            {([45, 60, 90] as DurationOption[]).map((dur) => {
-              const isActive = selectedDuration === dur;
-              return (
-                <button
-                  key={dur}
-                  onClick={() => handleDurationSelect(dur)}
-                  className={`flex-1 py-2.5 rounded-full font-medium text-base transition-all duration-200 cursor-pointer text-center mx-1 relative ${
-                    isActive
-                      ? 'neumorphic-inset bg-[#d1e4ff] dark:bg-[#004778] text-[#004778] dark:text-[#d1e4ff] font-extrabold shadow-[0_0_15px_rgba(0,95,158,0.35),inset_0_2px_4px_rgba(0,0,0,0.15)] dark:shadow-[0_0_18px_rgba(56,189,248,0.35),inset_0_2px_4px_rgba(0,0,0,0.4)] border border-[#005f9e]/30 dark:border-[#38bdf8]/40 scale-[1.02]'
-                      : 'bg-white dark:bg-[#191c1e] text-[#404751] dark:text-[#c0c7d3] shadow-[0_2px_6px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)] dark:shadow-none dark:neumorphic-raised hover:text-[#005f9e] dark:hover:text-[#9dcaff]'
-                  }`}
-                >
-                  {dur}s
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* AdMob Banner Placement Preview */}
-        <AdMimicBanner placement="home" />
-      </div>
-
+    <div className="fixed inset-0 bg-[#f7f9fc] dark:bg-[#191c1e]">
       {/* LOCATION REQUIRED DIALOG -- shown when the player denied location
           permission or dismissed the native "Turn on GPS" prompt without
           enabling it, blocking round start. */}

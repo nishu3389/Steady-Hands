@@ -1,13 +1,12 @@
 package com.steadyhands.balance.data
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.steadyhands.balance.R
 
 data class MindfulBenefit(
     val id: Int,
-    val icon: ImageVector,
+    @param:DrawableRes val icon: Int,
     val iconColorLight: Color,
     val iconColorDark: Color,
     val title: String,
@@ -18,7 +17,7 @@ data class MindfulBenefit(
 val MINDFUL_BENEFITS = listOf(
     MindfulBenefit(
         id = 1,
-        icon = Icons.Default.Psychology,
+        icon = R.drawable.ic_lucide_brain,
         iconColorLight = Color(0xFF005F9E),
         iconColorDark = Color(0xFF9DCAFF),
         title = "Laser-Sharp Focus",
@@ -27,7 +26,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 2,
-        icon = Icons.Default.Favorite,
+        icon = R.drawable.ic_lucide_heart_pulse,
         iconColorLight = Color(0xFF9A3412),
         iconColorDark = Color(0xFFFFB4A0),
         title = "Nervous System Calming",
@@ -36,7 +35,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 3,
-        icon = Icons.Default.Explore,
+        icon = R.drawable.ic_lucide_compass,
         iconColorLight = Color(0xFF007A6C),
         iconColorDark = Color(0xFF66DBCB),
         title = "Proprioception & Balance",
@@ -45,7 +44,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 4,
-        icon = Icons.Default.Air,
+        icon = R.drawable.ic_lucide_wind,
         iconColorLight = Color(0xFF0284C7),
         iconColorDark = Color(0xFF7DD3FC),
         title = "Natural Breath Regulation",
@@ -54,7 +53,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 5,
-        icon = Icons.Default.Bolt,
+        icon = R.drawable.ic_lucide_zap,
         iconColorLight = Color(0xFFD97706),
         iconColorDark = Color(0xFFFDE047),
         title = "Effortless Flow State",
@@ -63,7 +62,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 6,
-        icon = Icons.Default.Visibility,
+        icon = R.drawable.ic_lucide_eye,
         iconColorLight = Color(0xFF7C3AED),
         iconColorDark = Color(0xFFC4B5FD),
         title = "Sensory Reset from Screen Fatigue",
@@ -72,7 +71,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 7,
-        icon = Icons.Default.Security,
+        icon = R.drawable.ic_lucide_shield_check,
         iconColorLight = Color(0xFF059669),
         iconColorDark = Color(0xFF6EE7B7),
         title = "Emotional Self-Regulation",
@@ -81,7 +80,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 8,
-        icon = Icons.Default.FitnessCenter,
+        icon = R.drawable.ic_lucide_activity,
         iconColorLight = Color(0xFFE11D48),
         iconColorDark = Color(0xFFFDA4AF),
         title = "Postural Alignment",
@@ -90,7 +89,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 9,
-        icon = Icons.Default.DirectionsWalk,
+        icon = R.drawable.ic_lucide_feather,
         iconColorLight = Color(0xFF0891B2),
         iconColorDark = Color(0xFF67E8F9),
         title = "Active Zen Walking (Kinhin)",
@@ -99,7 +98,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 10,
-        icon = Icons.Default.BatteryChargingFull,
+        icon = R.drawable.ic_lucide_battery_charging,
         iconColorLight = Color(0xFFCA8A04),
         iconColorDark = Color(0xFFFEF08A),
         title = "Mental Energy Recharge",
@@ -108,7 +107,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 11,
-        icon = Icons.Default.SentimentSatisfiedAlt,
+        icon = R.drawable.ic_lucide_smile,
         iconColorLight = Color(0xFF16A34A),
         iconColorDark = Color(0xFF86EFAC),
         title = "Anxiety Release",
@@ -117,7 +116,7 @@ val MINDFUL_BENEFITS = listOf(
     ),
     MindfulBenefit(
         id = 12,
-        icon = Icons.Default.AutoAwesome,
+        icon = R.drawable.ic_lucide_sparkles,
         iconColorLight = Color(0xFF9333EA),
         iconColorDark = Color(0xFFD8B4FE),
         title = "Neuroplasticity & Motor Memory",

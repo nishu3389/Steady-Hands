@@ -6,6 +6,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -208,8 +209,8 @@ private fun LobbyView(
             onSelectDurationSec = onSelectDurationSec
         )
 
-        // 6. AdMob Banner Placement Preview
-        AdMimicCard()
+        // 6. Real Google AdMob Banner (home placement)
+        AdMobBannerAd()
 
         Spacer(modifier = Modifier.height(24.dp))
     }

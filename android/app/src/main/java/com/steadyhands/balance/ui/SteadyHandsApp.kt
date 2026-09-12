@@ -11,11 +11,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -26,15 +28,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.steadyhands.balance.MainActivity
 import com.steadyhands.balance.sensor.SensorFusionEngine
+import com.steadyhands.balance.ui.components.*
 import com.steadyhands.balance.ui.screens.*
 import com.steadyhands.balance.ui.theme.*
 import com.steadyhands.balance.ui.tutorial.InteractiveTutorialDialog
 
+// Matches the web's bottom nav, which renders every tab icon with
+// `material-symbols-outlined` (thin outline style, never filled) regardless
+// of selected state — so these use Material's Outlined icon set, not Filled.
 enum class AppTab(val label: String, val screenTitle: String, val icon: ImageVector) {
-    PLAY("PLAY", "Play", Icons.Default.SportsEsports),
-    INFO("INFO", "Instructions", Icons.Default.MenuBook),
-    RANK("RANK", "Leaderboard", Icons.Default.EmojiEvents),
-    SET("SET", "Settings", Icons.Default.Settings)
+    PLAY("PLAY", "Play", Icons.Outlined.SportsEsports),
+    INFO("INFO", "Instructions", Icons.Outlined.MenuBook),
+    RANK("RANK", "Leaderboard", Icons.Outlined.EmojiEvents),
+    SET("SET", "Settings", Icons.Outlined.Settings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,20 +66,21 @@ fun SteadyHandsApp() {
     Scaffold(
         bottomBar = {
             if (!isGameActive) {
-                // Pixel-Perfect Bottom Nav Bar (Height ~72dp, 4 tabs: PLAY, INFO, RANK, SET)
+                // Bottom Nav Bar: a plain, mostly-flat bar (matching the
+                // reference — no carved-in groove across the whole bar), with
+                // the selected tab popping up as the same [SegmentActivePill]
+                // raised chip used by the Difficulty/Duration selectors, so
+                // the "selected" language is shared while the bar itself
+                // stays light.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 16.dp,
-                            ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.40f),
-                            spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.40f)
+                            elevation = 8.dp,
+                            ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.25f),
+                            spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.25f)
                         )
                         .background(if (isDark) Color(0xFF191C1E).copy(alpha = 0.98f) else Color.White.copy(alpha = 0.98f))
-                        .border(
-                            width = 1.dp,
-                            color = if (isDark) Color.White.copy(alpha = 0.05f) else Color(0xFF005F9E).copy(alpha = 0.08f)
-                        )
                         .padding(horizontal = 16.dp, vertical = 6.dp)
                 ) {
                     Row(
@@ -87,53 +94,29 @@ fun SteadyHandsApp() {
                             val isSelected = currentTab == tab
 
                             if (isSelected) {
-                                val activeBg = if (isDark) Color(0xFF152331) else Color(0xFFE8F0F8)
-                                val insetShadow = if (isDark) Color(0xFF081018).copy(alpha = 0.70f) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
-                                val insetHighlight = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.95f)
+                                // Pressed-in squircle: near-white bg, very
+                                // rounded corners, but the shadow is carved
+                                // INTO the shape (dark near the top-left
+                                // edge, light near the bottom-right edge) —
+                                // real depth, not a bump sitting on top. Same
+                                // shared NeomorphicButton used for the main
+                                // PLAY dial trigger, just smaller and
+                                // inverted (inset = true).
+                                val activeBg = if (isDark) Color(0xFF1E2328) else Color(0xFFF8FAFC)
+                                val activeTint = if (isDark) Color(0xFF60A5FA) else Color(0xFF2F8FE0)
+                                val darkShadow = if (isDark) Color.Black.copy(alpha = 0.40f) else Color(0xFFA9B6C8).copy(alpha = 0.55f)
+                                val lightShadow = if (isDark) Color(0xFF34404A).copy(alpha = 0.40f) else Color.White.copy(alpha = 1f)
 
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 68.dp, height = 54.dp)
-                                        .shadow(
-                                            elevation = 2.dp,
-                                            shape = RoundedCornerShape(18.dp),
-                                            ambientColor = BrandBluePrimary.copy(alpha = 0.15f),
-                                            spotColor = BrandBluePrimary.copy(alpha = 0.15f)
-                                        )
-                                        .clip(RoundedCornerShape(18.dp))
-                                        .background(activeBg)
-                                        .drawBehind {
-                                            // Top-left inset shadow
-                                            drawRect(
-                                                brush = Brush.verticalGradient(
-                                                    colors = listOf(insetShadow, Color.Transparent),
-                                                    startY = 0f,
-                                                    endY = 6.dp.toPx()
-                                                )
-                                            )
-                                            drawRect(
-                                                brush = Brush.horizontalGradient(
-                                                    colors = listOf(insetShadow, Color.Transparent),
-                                                    startX = 0f,
-                                                    endX = 6.dp.toPx()
-                                                )
-                                            )
-                                            // Bottom-right inner highlight
-                                            drawRect(
-                                                brush = Brush.verticalGradient(
-                                                    colors = listOf(Color.Transparent, insetHighlight),
-                                                    startY = size.height - 6.dp.toPx(),
-                                                    endY = size.height
-                                                )
-                                            )
-                                        }
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (isDark) BrandBlueDark.copy(alpha = 0.30f) else BrandBluePrimary.copy(alpha = 0.20f),
-                                            shape = RoundedCornerShape(18.dp)
-                                        )
-                                        .clickable { currentTab = tab },
-                                    contentAlignment = Alignment.Center
+                                NeomorphicButton(
+                                    modifier = Modifier.size(width = 68.dp, height = 54.dp),
+                                    cornerRadius = 22.dp,
+                                    blurRadius = 8.dp,
+                                    shadowOffset = 3.dp,
+                                    fillColor = activeBg,
+                                    darkShadowColor = darkShadow,
+                                    lightShadowColor = lightShadow,
+                                    inset = true,
+                                    onClick = { currentTab = tab }
                                 ) {
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -143,7 +126,7 @@ fun SteadyHandsApp() {
                                         Icon(
                                             imageVector = tab.icon,
                                             contentDescription = tab.label,
-                                            tint = if (isDark) BrandBlueDark else BrandBluePrimary,
+                                            tint = activeTint,
                                             modifier = Modifier.size(24.dp)
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
@@ -152,7 +135,7 @@ fun SteadyHandsApp() {
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             letterSpacing = 1.sp,
-                                            color = if (isDark) BrandBlueDark else BrandBluePrimary
+                                            color = activeTint
                                         )
                                     }
                                 }
@@ -206,9 +189,10 @@ fun SteadyHandsApp() {
                 AppTab.INFO -> InstructionsScreen(
                     onReplayTutorial = { showTutorial = true }
                 )
-                AppTab.RANK -> LeaderboardScreen()
+                AppTab.RANK -> LeaderboardScreen(onPlayNow = { currentTab = AppTab.PLAY })
                 AppTab.SET -> SettingsScreen(
-                    sensorEngine = sensorEngine
+                    sensorEngine = sensorEngine,
+                    onOpenTutorial = { showTutorial = true }
                 )
             }
 

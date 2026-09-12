@@ -20,9 +20,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.steadyhands.balance.R
 import com.steadyhands.balance.data.MINDFUL_BENEFITS
 import com.steadyhands.balance.ui.theme.*
 import kotlinx.coroutines.delay
@@ -39,19 +41,19 @@ fun HomeRecordCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = if (isDark) 4.dp else 10.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.40f),
-                spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.40f)
+            // Same raised dual-shadow neumorphism as the "Why Steady Hands"
+            // pill below it — no stroke, real light/dark elevation instead
+            // of a flat bordered card.
+            .neumorphicDualShadow(
+                darkColor = if (isDark) Color.Black.copy(alpha = 0.45f) else Color(0xFFA3B1C6).copy(alpha = 0.45f),
+                lightColor = if (isDark) Color(0xFF3A4550).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.85f),
+                blurRadius = 6.dp,
+                offset = 3.dp,
+                cornerRadius = 16.dp,
+                inset = false
             )
             .clip(RoundedCornerShape(16.dp))
             .background(cardBg)
-            .border(
-                width = 1.dp,
-                color = if (isDark) Color.Transparent else Color.White.copy(alpha = 0.85f),
-                shape = RoundedCornerShape(16.dp)
-            )
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -99,7 +101,7 @@ fun HomeRecordCard(
                 text = "Body & Posture Stability",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.5.sp,
+                letterSpacing = 0.3.sp,
                 color = if (isDark) Color(0xFFA0A8B4) else Color(0xFF707882)
             )
         }
@@ -127,23 +129,22 @@ fun MindfulCarouselCard(
     val currentBenefit = MINDFUL_BENEFITS[activeIndex]
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Toggle Button matching web: rounded-2xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/15 shadow-sm
+        // Toggle Button: same raised dual-shadow neumorphism as the rest of
+        // the app (SegmentActivePill / bottom nav) instead of a bordered
+        // flat chip — no stroke, real light/dark elevation.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(
-                    elevation = 2.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.35f),
-                    spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.35f)
+                .neumorphicDualShadow(
+                    darkColor = if (isDark) Color.Black.copy(alpha = 0.45f) else Color(0xFFA3B1C6).copy(alpha = 0.45f),
+                    lightColor = if (isDark) Color(0xFF3A4550).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.85f),
+                    blurRadius = 6.dp,
+                    offset = 3.dp,
+                    cornerRadius = 16.dp,
+                    inset = false
                 )
                 .clip(RoundedCornerShape(16.dp))
                 .background(if (isDark) Color(0xFF152331) else Color(0xFFEEF4FB))
-                .border(
-                    width = 1.dp,
-                    color = if (isDark) Color(0xFF9DCAFF).copy(alpha = 0.20f) else Color(0xFF005F9E).copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(16.dp)
-                )
                 .clickable { isExpanded = !isExpanded }
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
@@ -157,7 +158,7 @@ fun MindfulCarouselCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AutoAwesome,
+                        painter = painterResource(id = R.drawable.ic_lucide_sparkles),
                         contentDescription = null,
                         tint = if (isDark) Color(0xFF9DCAFF) else BrandBluePrimary,
                         modifier = Modifier.size(16.dp)
@@ -171,7 +172,9 @@ fun MindfulCarouselCard(
                 }
 
                 Icon(
-                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    painter = painterResource(
+                        id = if (isExpanded) R.drawable.ic_lucide_chevron_up else R.drawable.ic_lucide_chevron_down
+                    ),
                     contentDescription = null,
                     tint = if (isDark) Color(0xFF9DCAFF) else BrandBluePrimary,
                     modifier = Modifier.size(18.dp)
@@ -226,7 +229,7 @@ fun MindfulCarouselCard(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = currentBenefit.icon,
+                                painter = painterResource(id = currentBenefit.icon),
                                 contentDescription = currentBenefit.title,
                                 tint = if (isDark) currentBenefit.iconColorDark else currentBenefit.iconColorLight,
                                 modifier = Modifier.size(20.dp)
@@ -244,6 +247,7 @@ fun MindfulCarouselCard(
                                     text = currentBenefit.tagline.uppercase(),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
                                     color = if (isDark) BrandBlueDark else BrandBluePrimary,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
@@ -264,7 +268,7 @@ fun MindfulCarouselCard(
                                 text = currentBenefit.description,
                                 fontSize = 12.sp,
                                 color = if (isDark) TextMutedDark else TextMutedLight,
-                                lineHeight = 17.sp
+                                lineHeight = 19.5.sp
                             )
                         }
                     }
@@ -310,7 +314,7 @@ fun MindfulCarouselCard(
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ChevronLeft,
+                                    painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
                                     contentDescription = "Previous",
                                     tint = if (isDark) TextSecondaryDark else TextSecondaryLight,
                                     modifier = Modifier.size(18.dp)
@@ -323,7 +327,7 @@ fun MindfulCarouselCard(
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ChevronRight,
+                                    painter = painterResource(id = R.drawable.ic_lucide_chevron_right),
                                     contentDescription = "Next",
                                     tint = if (isDark) TextSecondaryDark else TextSecondaryLight,
                                     modifier = Modifier.size(18.dp)
@@ -357,10 +361,10 @@ fun DifficultySelector(
             modifier = Modifier.padding(start = 8.dp)
         )
 
-        // Pill track container with True Neumorphic Inset shadow
-        NeuInsetTrack(
+        // Segmented track: only the active option gets a raised white pill,
+        // inactive options are plain text on the soft gradient track.
+        SegmentedTrack(
             modifier = Modifier.fillMaxWidth(),
-            shape = CircleShape,
             isDark = isDark
         ) {
             Row(
@@ -371,35 +375,33 @@ fun DifficultySelector(
                     val isActive = selectedDifficulty.equals(key, ignoreCase = true)
 
                     if (isActive) {
-                        NeuActiveDifficultyPill(
+                        SegmentActivePill(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp)
                                 .clickable { onSelectDifficulty(key) },
-                            shape = CircleShape,
                             isDark = isDark
                         ) {
                             Text(
                                 text = label,
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isDark) DifficultyActiveTextDark else DifficultyActiveTextLight
+                                color = if (isDark) Color(0xFFFB923C) else Color(0xFFEA580C)
                             )
                         }
                     } else {
-                        NeuRaisedPill(
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp)
                                 .clickable { onSelectDifficulty(key) },
-                            shape = CircleShape,
-                            isDark = isDark
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = label,
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = if (isDark) TextSecondaryDark else TextSecondaryLight
+                                color = if (isDark) TextSecondaryDark else TextPrimaryLight
                             )
                         }
                     }
@@ -429,10 +431,10 @@ fun DurationSelector(
             modifier = Modifier.padding(start = 8.dp)
         )
 
-        // Pill track container with True Neumorphic Inset shadow
-        NeuInsetTrack(
+        // Segmented track: only the active option gets a raised white pill,
+        // inactive options are plain text on the soft gradient track.
+        SegmentedTrack(
             modifier = Modifier.fillMaxWidth(),
-            shape = CircleShape,
             isDark = isDark
         ) {
             Row(
@@ -443,35 +445,33 @@ fun DurationSelector(
                     val isActive = selectedDurationSec == dur
 
                     if (isActive) {
-                        NeuActiveDurationPill(
+                        SegmentActivePill(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp)
                                 .clickable { onSelectDurationSec(dur) },
-                            shape = CircleShape,
                             isDark = isDark
                         ) {
                             Text(
                                 text = label,
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = if (isDark) DurationActiveTextDark else DurationActiveTextLight
+                                color = if (isDark) Color(0xFF60A5FA) else Color(0xFF2F8FE0)
                             )
                         }
                     } else {
-                        NeuRaisedPill(
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp)
                                 .clickable { onSelectDurationSec(dur) },
-                            shape = CircleShape,
-                            isDark = isDark
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = label,
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = if (isDark) TextSecondaryDark else TextSecondaryLight
+                                color = if (isDark) TextSecondaryDark else TextPrimaryLight
                             )
                         }
                     }
@@ -481,200 +481,3 @@ fun DurationSelector(
     }
 }
 
-@Composable
-fun AdMimicCard(
-    modifier: Modifier = Modifier
-) {
-    val isDark = isSystemInDarkTheme()
-
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        // Main Ad Banner Container (Glassmorphic gradient)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(
-                    elevation = if (isDark) 4.dp else 6.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    ambientColor = NeuDarkShadow,
-                    spotColor = NeuDarkShadow
-                )
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    if (isDark) {
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFF1E1B4B).copy(alpha = 0.70f),
-                                Color(0xFF312E81).copy(alpha = 0.50f)
-                            )
-                        )
-                    } else {
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                Color(0xFFC7D2FE).copy(alpha = 0.65f),
-                                Color(0xFFE0E7FF).copy(alpha = 0.75f)
-                            )
-                        )
-                    }
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (isDark) Color(0xFF818CF8).copy(alpha = 0.35f) else Color(0xFF818CF8).copy(alpha = 0.40f),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .padding(horizontal = 12.dp, vertical = 10.dp)
-        ) {
-            // AdChoices / Info pill in top-right
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = (-2).dp, y = (-2).dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(3.dp),
-                    color = Color.Black.copy(alpha = 0.40f)
-                ) {
-                    Text(
-                        text = "AD",
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFFA0A8B4),
-                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
-                    )
-                }
-                Text(
-                    text = "ⓘ",
-                    fontSize = 10.sp,
-                    color = Color(0xFF707882)
-                )
-            }
-
-            // Banner Content: Icon, Title/Subtitle, and CTA Button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Left: Squircle Icon + Copy
-                Row(
-                    modifier = Modifier.weight(1f).padding(end = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // App Squircle Icon
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .shadow(2.dp, RoundedCornerShape(12.dp))
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFF818CF8),
-                                        Color(0xFF6366F1)
-                                    )
-                                )
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = Color.White.copy(alpha = 0.30f),
-                                shape = RoundedCornerShape(12.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    // Title & Rating/Subtitle
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Hydration & Posture Coa...",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDark) Color(0xFFEFF1F4) else Color(0xFF1E1B4B),
-                            maxLines = 1
-                        )
-
-                        Spacer(modifier = Modifier.height(2.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Text(
-                                text = "★ 4.7",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFF59E0B)
-                            )
-                            Text(
-                                text = "· Stay refreshed, walk tal...",
-                                fontSize = 10.sp,
-                                color = if (isDark) Color(0xFFA0A8B4) else Color(0xFF4F46E5),
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-
-                // Right: "Free Trial" Button
-                Box(
-                    modifier = Modifier
-                        .shadow(
-                            elevation = 3.dp,
-                            shape = CircleShape,
-                            ambientColor = BrandBluePrimary.copy(alpha = 0.40f),
-                            spotColor = BrandBluePrimary.copy(alpha = 0.40f)
-                        )
-                        .clip(CircleShape)
-                        .background(BrandBluePrimary)
-                        .border(
-                            width = 1.dp,
-                            color = OrbitCyan.copy(alpha = 0.40f),
-                            shape = CircleShape
-                        )
-                        .padding(horizontal = 14.dp, vertical = 7.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Free Trial",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 0.3.sp,
-                        color = Color.White
-                    )
-                }
-            }
-        }
-
-        // Bottom Placement Subtitle
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Google AdMob · home placement",
-                fontSize = 9.sp,
-                color = if (isDark) TextMutedDark else TextMutedLight
-            )
-            Text(
-                text = "ID: ...8214685836",
-                fontSize = 8.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                color = if (isDark) TextMutedDark.copy(alpha = 0.7f) else TextMutedLight.copy(alpha = 0.7f)
-            )
-        }
-    }
-}

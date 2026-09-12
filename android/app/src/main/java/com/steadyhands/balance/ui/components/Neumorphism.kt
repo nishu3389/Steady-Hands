@@ -1,5 +1,6 @@
 package com.steadyhands.balance.ui.components
 
+import android.graphics.BlurMaskFilter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -19,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.steadyhands.balance.ui.theme.*
@@ -78,62 +81,84 @@ fun NeuRaisedCard(
 }
 
 /**
- * Neumorphic Inset / Sunken Track container (for segmented pickers & input slots):
- * - Inset shaded background (#e9edf2)
- * - Top/Left darker inset shadow (creates carved look)
- * - Bottom/Right crisp highlight reflection
+ * Draws the classic neumorphic dual soft-shadow pair: a dark blurred shadow
+ * offset toward the bottom-right (as if lit from the top-left) and a light
+ * blurred highlight offset toward the top-left, both using a real Gaussian
+ * blur (`BlurMaskFilter`) rather than a single flat elevation shadow — this
+ * is what actually reads as "3D depth" instead of a flat drop shadow.
+ *
+ * [inset] draws the same pair the other way around (dark toward the near
+ * top-left edge, light toward the near bottom-right edge) and expects the
+ * caller to have already clipped to [shape], so only the sliver of each
+ * blurred shape that overlaps the clipped area shows — producing a carved
+ * "sunken" look instead of a "raised" one.
+ */
+fun Modifier.neumorphicDualShadow(
+    darkColor: Color,
+    lightColor: Color,
+    blurRadius: Dp,
+    offset: Dp,
+    cornerRadius: Dp,
+    inset: Boolean = false
+): Modifier = this.drawBehind {
+    val blurPx = blurRadius.toPx()
+    val offsetPx = if (inset) -offset.toPx() else offset.toPx()
+    val cornerPx = cornerRadius.toPx()
+
+    drawIntoCanvas { canvas ->
+        val darkPaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            color = darkColor.toArgb()
+            maskFilter = BlurMaskFilter(blurPx, BlurMaskFilter.Blur.NORMAL)
+        }
+        canvas.nativeCanvas.drawRoundRect(
+            offsetPx, offsetPx, size.width + offsetPx, size.height + offsetPx,
+            cornerPx, cornerPx, darkPaint
+        )
+    }
+    drawIntoCanvas { canvas ->
+        val lightPaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            color = lightColor.toArgb()
+            maskFilter = BlurMaskFilter(blurPx, BlurMaskFilter.Blur.NORMAL)
+        }
+        canvas.nativeCanvas.drawRoundRect(
+            -offsetPx, -offsetPx, size.width - offsetPx, size.height - offsetPx,
+            cornerPx, cornerPx, lightPaint
+        )
+    }
+}
+
+/**
+ * Segmented-control track (for Difficulty/Duration pickers): a soft, sunken
+ * groove with genuine dual-tone (dark + light) blurred shadows carved into
+ * its edges — the inactive options sit directly on this background with no
+ * pill of their own, only the active option gets its own raised white pill
+ * (see [SegmentActivePill]).
  */
 @Composable
-fun NeuInsetTrack(
+fun SegmentedTrack(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(50.dp),
+    cornerRadius: Dp = 18.dp,
+    shape: Shape = RoundedCornerShape(cornerRadius),
     isDark: Boolean = isSystemInDarkTheme(),
     content: @Composable BoxScope.() -> Unit
 ) {
-    val trackBg = if (isDark) Color(0xFF162B3B) else Color(0xFFE9EDF2)
-    val shadowColor = if (isDark) Color(0xFF0D1720).copy(alpha = 0.80f) else Color(0xFFA3B1C6).copy(alpha = 0.50f)
-    val highlightColor = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.90f)
+    val trackBg = if (isDark) Color(0xFF1A1F24) else Color(0xFFE7EBF1)
+    val darkShadow = if (isDark) Color.Black.copy(alpha = 0.40f) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
+    val lightShadow = if (isDark) Color(0xFF2E363F).copy(alpha = 0.40f) else Color.White.copy(alpha = 0.85f)
 
     Box(
         modifier = modifier
             .clip(shape)
             .background(trackBg)
-            .drawBehind {
-                // Top-left inset shadow gradient
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(shadowColor, Color.Transparent),
-                        startY = 0f,
-                        endY = 12.dp.toPx()
-                    )
-                )
-                drawRect(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(shadowColor, Color.Transparent),
-                        startX = 0f,
-                        endX = 12.dp.toPx()
-                    )
-                )
-                // Bottom-right inner highlight
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, highlightColor),
-                        startY = size.height - 10.dp.toPx(),
-                        endY = size.height
-                    )
-                )
-            }
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        if (isDark) Color(0xFF0F1B25) else Color(0xFFD4DDE8),
-                        if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.95f)
-                    ),
-                    start = Offset(0f, 0f),
-                    end = Offset(300f, 300f)
-                ),
-                shape = shape
+            .neumorphicDualShadow(
+                darkColor = darkShadow,
+                lightColor = lightShadow,
+                blurRadius = 7.dp,
+                offset = 4.dp,
+                cornerRadius = cornerRadius,
+                inset = true
             )
             .padding(5.dp),
         content = content
@@ -141,124 +166,37 @@ fun NeuInsetTrack(
 }
 
 /**
- * Raised Neumorphic Pill (for Inactive Difficulty/Duration options like "Easy", "Hard", "45s", "90s")
- * Matches web: bg-white shadow-[0_2px_6px_rgba(0,0,0,0.04),-2px_-2px_6px_rgba(255,255,255,0.9)]
+ * Raised white pill for the active segment inside a [SegmentedTrack] — real
+ * dual-tone blurred shadows (dark bottom-right, light top-left) drawn
+ * outside its own clipped bounds so it visibly pops up off the track, the
+ * way a neumorphic "pressed up" element should read. This is the only piece
+ * of chrome behind the active label; inactive labels are plain text with no
+ * pill/background at all, matching the reference design.
  */
 @Composable
-fun NeuRaisedPill(
+fun SegmentActivePill(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(50.dp),
+    cornerRadius: Dp = 14.dp,
+    shape: Shape = RoundedCornerShape(cornerRadius),
     isDark: Boolean = isSystemInDarkTheme(),
     content: @Composable BoxScope.() -> Unit
 ) {
-    val pillBg = if (isDark) Color(0xFF191C1E) else Color.White
-    val shadowColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.40f)
+    val pillBg = if (isDark) Color(0xFF262C33) else Color.White
+    val darkShadow = if (isDark) Color.Black.copy(alpha = 0.45f) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
+    val lightShadow = if (isDark) Color(0xFF3A4550).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.85f)
 
     Box(
         modifier = modifier
-            .shadow(
-                elevation = if (isDark) 2.dp else 4.dp,
-                shape = shape,
-                ambientColor = shadowColor,
-                spotColor = shadowColor
+            .neumorphicDualShadow(
+                darkColor = darkShadow,
+                lightColor = lightShadow,
+                blurRadius = 6.dp,
+                offset = 3.dp,
+                cornerRadius = cornerRadius,
+                inset = false
             )
             .clip(shape)
-            .background(pillBg)
-            .border(
-                width = 1.dp,
-                color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.95f),
-                shape = shape
-            ),
-        contentAlignment = androidx.compose.ui.Alignment.Center,
-        content = content
-    )
-}
-
-/**
- * Active Difficulty Inset Pill (Warm Amber: #ffdea8 with #5e4200 text)
- * Matches web: neumorphic-inset bg-[#ffdea8] dark:bg-[#5e4200] text-[#5e4200]
- */
-@Composable
-fun NeuActiveDifficultyPill(
-    modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(50.dp),
-    isDark: Boolean = isSystemInDarkTheme(),
-    content: @Composable BoxScope.() -> Unit
-) {
-    val activeBg = if (isDark) Color(0xFF5E4200) else Color(0xFFFFDEA8)
-    val insetShadow = if (isDark) Color(0xFF281C00).copy(alpha = 0.6f) else Color(0xFF9E7100).copy(alpha = 0.25f)
-
-    Box(
-        modifier = modifier
-            .clip(shape)
-            .background(activeBg)
-            .drawBehind {
-                // Inset shadow top-left
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(insetShadow, Color.Transparent),
-                        startY = 0f,
-                        endY = 8.dp.toPx()
-                    )
-                )
-                drawRect(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(insetShadow, Color.Transparent),
-                        startX = 0f,
-                        endX = 8.dp.toPx()
-                    )
-                )
-            }
-            .border(
-                width = 1.dp,
-                color = if (isDark) Color(0xFFFFDEA8).copy(alpha = 0.35f) else Color(0xFF5E4200).copy(alpha = 0.18f),
-                shape = shape
-            ),
-        contentAlignment = androidx.compose.ui.Alignment.Center,
-        content = content
-    )
-}
-
-/**
- * Active Duration Inset Pill (Sky Blue: #d1e4ff with #004778 text and cyan/blue glow)
- * Matches web: neumorphic-inset bg-[#d1e4ff] shadow-[0_0_15px_rgba(0,95,158,0.35),inset_0_2px_4px_rgba(0,0,0,0.15)]
- */
-@Composable
-fun NeuActiveDurationPill(
-    modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(50.dp),
-    isDark: Boolean = isSystemInDarkTheme(),
-    content: @Composable BoxScope.() -> Unit
-) {
-    val activeBg = if (isDark) Color(0xFF004778) else Color(0xFFD1E4FF)
-    val glowColor = if (isDark) Color(0xFF38BDF8).copy(alpha = 0.40f) else Color(0xFF005F9E).copy(alpha = 0.35f)
-    val insetShadow = if (isDark) Color(0xFF00223D).copy(alpha = 0.60f) else Color(0xFF004778).copy(alpha = 0.22f)
-
-    Box(
-        modifier = modifier
-            .shadow(
-                elevation = 4.dp,
-                shape = shape,
-                ambientColor = glowColor,
-                spotColor = glowColor
-            )
-            .clip(shape)
-            .background(activeBg)
-            .drawBehind {
-                // Inset shadow top-left
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(insetShadow, Color.Transparent),
-                        startY = 0f,
-                        endY = 8.dp.toPx()
-                    )
-                )
-            }
-            .border(
-                width = 1.2.dp,
-                color = if (isDark) Color(0xFF38BDF8).copy(alpha = 0.50f) else Color(0xFF005F9E).copy(alpha = 0.35f),
-                shape = shape
-            ),
+            .background(pillBg),
         contentAlignment = androidx.compose.ui.Alignment.Center,
         content = content
     )

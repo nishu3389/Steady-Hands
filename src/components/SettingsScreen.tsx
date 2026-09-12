@@ -441,12 +441,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <span className="font-bold text-sm text-[#191c1e] dark:text-[#eff1f4]">Runtime Engine</span>
             </div>
             <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-[#008080]/10 text-[#008080] dark:text-[#2dd4bf] border border-[#008080]/20">
-              Web / Hybrid Active
+              Compose Default Mode
             </span>
           </div>
 
           <p className="text-xs text-[#404751] dark:text-[#c0c7d3] leading-relaxed">
-            Both the <strong>Capacitor Hybrid Engine</strong> and the <strong>Native Jetpack Compose Engine</strong> are preserved side-by-side. You can switch between them anytime.
+            The app defaults to the <strong>Native Jetpack Compose Engine</strong>. You can switch between Compose and the Capacitor Web runtime anytime.
           </p>
 
           <button

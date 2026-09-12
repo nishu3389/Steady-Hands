@@ -185,22 +185,36 @@ fun StartButtonOrbit(
             }
         }
 
-        // Center Interactive Start Button (~150dp)
+        // Center Interactive Start Button (~150dp) with dual neumorphic shadow and gradient
+        val buttonGradient = if (isDark) {
+            Brush.linearGradient(
+                colors = listOf(Color(0xFF262B30), Color(0xFF16191C)),
+                start = Offset(0f, 0f),
+                end = Offset(250f, 250f)
+            )
+        } else {
+            Brush.linearGradient(
+                colors = listOf(Color(0xFFFFFFFF), Color(0xFFEFF3F8)),
+                start = Offset(0f, 0f),
+                end = Offset(250f, 250f)
+            )
+        }
+
         Box(
             modifier = Modifier
                 .size(152.dp)
                 .scale(scale)
                 .shadow(
-                    elevation = if (isDark) 8.dp else 10.dp,
+                    elevation = if (isDark) 10.dp else 14.dp,
                     shape = CircleShape,
-                    ambientColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow,
-                    spotColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow
+                    ambientColor = if (isDark) Color(0xFF040608) else Color(0xFFA3B1C6).copy(alpha = 0.60f),
+                    spotColor = if (isDark) Color(0xFF040608) else Color(0xFFA3B1C6).copy(alpha = 0.60f)
                 )
                 .clip(CircleShape)
-                .background(if (isDark) SurfaceDark else SurfaceWhite)
+                .background(buttonGradient)
                 .border(
-                    width = 1.2.dp,
-                    color = if (isDark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.90f),
+                    width = 1.5.dp,
+                    color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.95f),
                     shape = CircleShape
                 )
                 .clickable(
@@ -213,11 +227,11 @@ fun StartButtonOrbit(
             // Subtle Inner Concentric Ring
             Box(
                 modifier = Modifier
-                    .size(136.dp)
+                    .size(134.dp)
                     .clip(CircleShape)
                     .border(
                         width = 1.dp,
-                        color = if (isDark) BrandBlueDark.copy(alpha = 0.15f) else BrandBluePrimary.copy(alpha = 0.15f),
+                        color = if (isDark) BrandBlueDark.copy(alpha = 0.18f) else BrandBluePrimary.copy(alpha = 0.14f),
                         shape = CircleShape
                     )
             )
@@ -228,13 +242,26 @@ fun StartButtonOrbit(
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier.padding(8.dp)
             ) {
-                // Play Icon Badge (40dp)
+                // Play Icon Badge (42dp) with inset / shadow styling
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .background(
-                            if (isDark) BrandBlueDark.copy(alpha = 0.15f) else BrandBluePrimary.copy(alpha = 0.10f)
+                            if (isDark) {
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFF00558F).copy(alpha = 0.35f), Color(0xFF003D69).copy(alpha = 0.20f))
+                                )
+                            } else {
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFFD6E8FC), Color(0xFFE8F2FD))
+                                )
+                            }
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isDark) BrandBlueDark.copy(alpha = 0.25f) else BrandBluePrimary.copy(alpha = 0.15f),
+                            shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {

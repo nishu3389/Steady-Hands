@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -34,23 +35,37 @@ fun HomeRecordCard(
 ) {
     val isDark = isSystemInDarkTheme()
 
+    val cardBgGradient = if (isDark) {
+        Brush.linearGradient(
+            colors = listOf(Color(0xFF22262B), Color(0xFF181B1E)),
+            start = Offset(0f, 0f),
+            end = Offset(400f, 400f)
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(Color(0xFFFFFFFF), Color(0xFFF0F4F8)),
+            start = Offset(0f, 0f),
+            end = Offset(400f, 400f)
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .shadow(
-                elevation = if (isDark) 4.dp else 6.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow,
-                spotColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow
+                elevation = if (isDark) 5.dp else 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.55f),
+                spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.55f)
             )
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (isDark) SurfaceDark else SurfaceWhite)
+            .clip(RoundedCornerShape(20.dp))
+            .background(cardBgGradient)
             .border(
                 width = 1.dp,
-                color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.60f),
-                shape = RoundedCornerShape(16.dp)
+                color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.90f),
+                shape = RoundedCornerShape(20.dp)
             )
-            .padding(vertical = 16.dp, horizontal = 20.dp),
+            .padding(vertical = 18.dp, horizontal = 20.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -66,16 +81,16 @@ fun HomeRecordCard(
                 color = if (isDark) TextSecondaryDark else TextSecondaryLight
             )
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
-            // Score with % sign
+            // Score with % sign and subtle gradient drop shadow
             Row(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "$recordScore",
-                    fontSize = 46.sp,
+                    fontSize = 48.sp,
                     lineHeight = 52.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = if (isDark) BrandBlueDark else BrandBluePrimary,
@@ -90,7 +105,7 @@ fun HomeRecordCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             // Subtitle
             Text(
@@ -177,22 +192,36 @@ fun MindfulCarouselCard(
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
+            val expandedGradient = if (isDark) {
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFF22262B), Color(0xFF181B1E)),
+                    start = Offset(0f, 0f),
+                    end = Offset(300f, 300f)
+                )
+            } else {
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFFFFFFFF), Color(0xFFF0F4F8)),
+                    start = Offset(0f, 0f),
+                    end = Offset(300f, 300f)
+                )
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp)
                     .shadow(
-                        elevation = if (isDark) 4.dp else 6.dp,
-                        shape = RoundedCornerShape(16.dp),
-                        ambientColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow,
-                        spotColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow
+                        elevation = if (isDark) 5.dp else 8.dp,
+                        shape = RoundedCornerShape(18.dp),
+                        ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.55f),
+                        spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.55f)
                     )
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (isDark) SurfaceDark else SurfaceWhite)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(expandedGradient)
                     .border(
                         width = 1.dp,
-                        color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.60f),
-                        shape = RoundedCornerShape(16.dp)
+                        color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.90f),
+                        shape = RoundedCornerShape(18.dp)
                     )
                     .padding(16.dp)
             ) {
@@ -336,6 +365,16 @@ fun DifficultySelector(
     val isDark = isSystemInDarkTheme()
     val options = listOf("easy" to "Easy", "medium" to "Medium", "hard" to "Hard")
 
+    val trackGradient = if (isDark) {
+        Brush.linearGradient(
+            colors = listOf(Color(0xFF131A22), Color(0xFF192532))
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(Color(0xFFE2E7ED), Color(0xFFEDF2F7))
+        )
+    }
+
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Label with uppercase tracking
         Text(
@@ -347,13 +386,18 @@ fun DifficultySelector(
             modifier = Modifier.padding(start = 8.dp)
         )
 
-        // Pill track container (#e9edf2 / #162B3B)
+        // Pill track container with Neumorphic Inset shadow & gradient
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(CircleShape)
-                .background(if (isDark) SegmentTrackDark else SegmentTrackLight)
-                .padding(6.dp)
+                .background(trackGradient)
+                .border(
+                    width = 1.dp,
+                    color = if (isDark) Color(0xFF0F172A).copy(alpha = 0.70f) else Color.White.copy(alpha = 0.70f),
+                    shape = CircleShape
+                )
+                .padding(5.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -362,27 +406,55 @@ fun DifficultySelector(
                 options.forEach { (key, label) ->
                     val isActive = selectedDifficulty.equals(key, ignoreCase = true)
 
+                    val activeBg = if (isActive) {
+                        if (isDark) {
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFF6B4B02), Color(0xFF533900))
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFFFFE5BA), Color(0xFFFFD794))
+                            )
+                        }
+                    } else {
+                        if (isDark) {
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFF23282D), Color(0xFF1A1D20))
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFFFFFFFF), Color(0xFFF7F9FC))
+                            )
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp)
                             .shadow(
-                                elevation = if (isActive) 0.dp else (if (isDark) 0.dp else 2.dp),
+                                elevation = if (isActive) (if (isDark) 4.dp else 3.dp) else (if (isDark) 2.dp else 4.dp),
                                 shape = CircleShape,
-                                ambientColor = NeuDarkShadow,
-                                spotColor = NeuDarkShadow
-                            )
-                            .clip(CircleShape)
-                            .background(
-                                if (isActive) {
-                                    if (isDark) DifficultyActiveBgDark else DifficultyActiveBgLight
+                                ambientColor = if (isActive) {
+                                    if (isDark) Color(0xFF281C00) else Color(0xFFF59E0B).copy(alpha = 0.35f)
                                 } else {
-                                    if (isDark) SurfaceDark else SurfaceWhite
+                                    if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
+                                },
+                                spotColor = if (isActive) {
+                                    if (isDark) Color(0xFF281C00) else Color(0xFFF59E0B).copy(alpha = 0.35f)
+                                } else {
+                                    if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
                                 }
                             )
+                            .clip(CircleShape)
+                            .background(activeBg)
                             .border(
-                                width = if (isActive && isDark) 1.dp else 0.dp,
-                                color = if (isActive && isDark) Color(0x33FFDEA8) else Color.Transparent,
+                                width = if (isActive) 1.dp else 1.dp,
+                                color = if (isActive) {
+                                    if (isDark) Color(0xFFFFDEA8).copy(alpha = 0.30f) else Color(0xFFF59E0B).copy(alpha = 0.35f)
+                                } else {
+                                    if (isDark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.90f)
+                                },
                                 shape = CircleShape
                             )
                             .clickable { onSelectDifficulty(key) },
@@ -414,6 +486,16 @@ fun DurationSelector(
     val isDark = isSystemInDarkTheme()
     val options = listOf(45 to "45s", 60 to "60s", 90 to "90s")
 
+    val trackGradient = if (isDark) {
+        Brush.linearGradient(
+            colors = listOf(Color(0xFF131A22), Color(0xFF192532))
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(Color(0xFFE2E7ED), Color(0xFFEDF2F7))
+        )
+    }
+
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Label with uppercase tracking
         Text(
@@ -425,13 +507,18 @@ fun DurationSelector(
             modifier = Modifier.padding(start = 8.dp)
         )
 
-        // Pill track container (#e9edf2 / #162B3B)
+        // Pill track container with Neumorphic Inset shadow & gradient
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(CircleShape)
-                .background(if (isDark) SegmentTrackDark else SegmentTrackLight)
-                .padding(6.dp)
+                .background(trackGradient)
+                .border(
+                    width = 1.dp,
+                    color = if (isDark) Color(0xFF0F172A).copy(alpha = 0.70f) else Color.White.copy(alpha = 0.70f),
+                    shape = CircleShape
+                )
+                .padding(5.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -440,29 +527,55 @@ fun DurationSelector(
                 options.forEach { (dur, label) ->
                     val isActive = selectedDurationSec == dur
 
+                    val activeBg = if (isActive) {
+                        if (isDark) {
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFF00558F), Color(0xFF003D69))
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFFDCEDFF), Color(0xFFC8E1FF))
+                            )
+                        }
+                    } else {
+                        if (isDark) {
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFF23282D), Color(0xFF1A1D20))
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFFFFFFFF), Color(0xFFF7F9FC))
+                            )
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp)
                             .shadow(
-                                elevation = if (isActive) (if (isDark) 4.dp else 3.dp) else (if (isDark) 0.dp else 2.dp),
+                                elevation = if (isActive) (if (isDark) 5.dp else 4.dp) else (if (isDark) 2.dp else 4.dp),
                                 shape = CircleShape,
-                                ambientColor = if (isActive) BrandBluePrimary.copy(alpha = 0.35f) else NeuDarkShadow,
-                                spotColor = if (isActive) BrandBluePrimary.copy(alpha = 0.35f) else NeuDarkShadow
-                            )
-                            .clip(CircleShape)
-                            .background(
-                                if (isActive) {
-                                    if (isDark) DurationActiveBgDark else DurationActiveBgLight
+                                ambientColor = if (isActive) {
+                                    if (isDark) BrandBlueDark.copy(alpha = 0.40f) else BrandBluePrimary.copy(alpha = 0.45f)
                                 } else {
-                                    if (isDark) SurfaceDark else SurfaceWhite
+                                    if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
+                                },
+                                spotColor = if (isActive) {
+                                    if (isDark) BrandBlueDark.copy(alpha = 0.40f) else BrandBluePrimary.copy(alpha = 0.45f)
+                                } else {
+                                    if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
                                 }
                             )
+                            .clip(CircleShape)
+                            .background(activeBg)
                             .border(
-                                width = if (isActive) 1.dp else 0.dp,
+                                width = if (isActive) 1.dp else 1.dp,
                                 color = if (isActive) {
-                                    if (isDark) OrbitCyan.copy(alpha = 0.40f) else BrandBluePrimary.copy(alpha = 0.30f)
-                                } else Color.Transparent,
+                                    if (isDark) OrbitCyan.copy(alpha = 0.45f) else BrandBluePrimary.copy(alpha = 0.35f)
+                                } else {
+                                    if (isDark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.90f)
+                                },
                                 shape = CircleShape
                             )
                             .clickable { onSelectDurationSec(dur) },

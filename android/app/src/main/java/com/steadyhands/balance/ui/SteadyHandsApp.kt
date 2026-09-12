@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -85,21 +86,37 @@ fun SteadyHandsApp() {
                         AppTab.values().forEach { tab ->
                             val isSelected = currentTab == tab
 
+                            val selectedTabBg = if (isSelected) {
+                                if (isDark) {
+                                    Brush.linearGradient(
+                                        colors = listOf(Color(0xFF1B2836), Color(0xFF131D28))
+                                    )
+                                } else {
+                                    Brush.linearGradient(
+                                        colors = listOf(Color(0xFFE2ECF7), Color(0xFFEDF4FB))
+                                    )
+                                }
+                            } else {
+                                Brush.linearGradient(
+                                    colors = listOf(Color.Transparent, Color.Transparent)
+                                )
+                            }
+
                             Box(
                                 modifier = Modifier
-                                    .size(width = 66.dp, height = 58.dp)
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(
-                                        if (isSelected) {
-                                            if (isDark) BottomNavActiveBgDark else BottomNavActiveBgLight
-                                        } else {
-                                            Color.Transparent
-                                        }
+                                    .size(width = 68.dp, height = 58.dp)
+                                    .shadow(
+                                        elevation = if (isSelected) (if (isDark) 2.dp else 2.dp) else 0.dp,
+                                        shape = RoundedCornerShape(18.dp),
+                                        ambientColor = if (isSelected) BrandBluePrimary.copy(alpha = 0.25f) else Color.Transparent,
+                                        spotColor = if (isSelected) BrandBluePrimary.copy(alpha = 0.25f) else Color.Transparent
                                     )
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(selectedTabBg)
                                     .border(
                                         width = if (isSelected) 1.dp else 0.dp,
                                         color = if (isSelected) {
-                                            if (isDark) BrandBlueDark.copy(alpha = 0.25f) else BrandBluePrimary.copy(alpha = 0.25f)
+                                            if (isDark) BrandBlueDark.copy(alpha = 0.35f) else BrandBluePrimary.copy(alpha = 0.30f)
                                         } else Color.Transparent,
                                         shape = RoundedCornerShape(18.dp)
                                     )

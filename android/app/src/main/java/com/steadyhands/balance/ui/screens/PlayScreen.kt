@@ -27,10 +27,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.steadyhands.balance.sensor.SensorFusionEngine
-import com.steadyhands.balance.ui.components.NeuCard
-import com.steadyhands.balance.ui.components.NeuInset
-import com.steadyhands.balance.ui.components.WaterBowlCanvas
+import com.steadyhands.balance.ui.components.*
 import com.steadyhands.balance.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -46,16 +46,22 @@ enum class SessionState {
 @Composable
 fun PlayScreen(
     sensorEngine: SensorFusionEngine,
-    onOpenTutorial: () -> Unit
+    onOpenTutorial: () -> Unit,
+    onGameActiveChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
     val isDark = isSystemInDarkTheme()
 
     var sessionState by remember { mutableStateOf(SessionState.LOBBY) }
-    var selectedDurationMinutes by remember { mutableIntStateOf(3) }
+    var selectedDifficulty by remember { mutableStateOf("medium") }
+    var selectedDurationSec by remember { mutableIntStateOf(60) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
     var calibrationCount by remember { mutableIntStateOf(3) }
+
+    LaunchedEffect(sessionState) {
+        onGameActiveChanged(sessionState != SessionState.LOBBY)
+    }
 
     // Haptic feedback on spillage
     LaunchedEffect(sensorEngine.isSpilling) {
@@ -76,8 +82,7 @@ fun PlayScreen(
             while (sessionState == SessionState.ACTIVE) {
                 delay(1000)
                 elapsedSeconds++
-                val targetSecs = selectedDurationMinutes * 60
-                if (selectedDurationMinutes > 0 && elapsedSeconds >= targetSecs) {
+                if (selectedDurationSec > 0 && elapsedSeconds >= selectedDurationSec) {
                     sessionState = SessionState.COMPLETED
                     sensorEngine.stop()
                     break
@@ -103,18 +108,17 @@ fun PlayScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         when (sessionState) {
             SessionState.LOBBY -> {
                 LobbyView(
-                    selectedDuration = selectedDurationMinutes,
-                    onSelectDuration = { selectedDurationMinutes = it },
-                    onStart = { sessionState = SessionState.CALIBRATING },
-                    onOpenTutorial = onOpenTutorial
+                    selectedDifficulty = selectedDifficulty,
+                    onSelectDifficulty = { selectedDifficulty = it },
+                    selectedDurationSec = selectedDurationSec,
+                    onSelectDurationSec = { selectedDurationSec = it },
+                    onStart = { sessionState = SessionState.CALIBRATING }
                 )
             }
             SessionState.CALIBRATING -> {
@@ -124,7 +128,7 @@ fun PlayScreen(
                 ActiveSessionView(
                     sensorEngine = sensorEngine,
                     elapsedSeconds = elapsedSeconds,
-                    totalSeconds = selectedDurationMinutes * 60,
+                    totalSeconds = selectedDurationSec,
                     isPaused = sessionState == SessionState.PAUSED,
                     onTogglePause = {
                         sessionState = if (sessionState == SessionState.PAUSED) SessionState.ACTIVE else SessionState.PAUSED
@@ -152,95 +156,62 @@ fun PlayScreen(
 
 @Composable
 private fun LobbyView(
-    selectedDuration: Int,
-    onSelectDuration: (Int) -> Unit,
-    onStart: () -> Unit,
-    onOpenTutorial: () -> Unit
+    selectedDifficulty: String,
+    onSelectDifficulty: (String) -> Unit,
+    selectedDurationSec: Int,
+    onSelectDurationSec: (Int) -> Unit,
+    onStart: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val recordScore = when (selectedDifficulty.lowercase()) {
+        "easy" -> 99
+        "medium" -> 99
+        "hard" -> 95
+        else -> 99
+    }
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .widthIn(max = 420.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Mindful Walking Balance",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (isDark) ZenDarkTextPrimary else ZenLightTextPrimary,
-            textAlign = TextAlign.Center
+        // 1. Best Steadiness Record Card
+        HomeRecordCard(
+            difficulty = selectedDifficulty,
+            recordScore = recordScore
         )
 
-        Text(
-            text = "Carry the virtual tea bowl without spilling a single drop. Smooth, gliding steps cultivate tranquil focus.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (isDark) ZenDarkTextSecondary else ZenLightTextSecondary,
-            textAlign = TextAlign.Center
+        // 2. Collapsible Mindful Health Card with Sequential Carousel
+        MindfulCarouselCard()
+
+        // 3. Center Stylish Start Button with Ambient Glow & Rotating Orbit
+        StartButtonOrbit(
+            durationSec = selectedDurationSec,
+            difficulty = selectedDifficulty,
+            onStartClick = onStart,
+            modifier = Modifier.padding(vertical = 4.dp)
         )
 
-        // Bowl Preview
-        WaterBowlCanvas(
-            pitch = 0f,
-            roll = 0f,
-            waterRemaining = 100f,
-            isSpilling = false,
-            modifier = Modifier.size(240.dp)
+        // 4. Difficulty Selector (Easy, Medium, Hard)
+        DifficultySelector(
+            selectedDifficulty = selectedDifficulty,
+            onSelectDifficulty = onSelectDifficulty
         )
 
-        // Duration Selection Chips
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            listOf(1 to "1 Min", 3 to "3 Min", 5 to "5 Min", 0 to "Free").forEach { (duration, label) ->
-                val isSelected = selectedDuration == duration
-                Surface(
-                    onClick = { onSelectDuration(duration) },
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isSelected) ZenTealPrimary else (if (isDark) ZenDarkCard else ZenLightCard),
-                    border = if (!isSelected) BorderStroke(1.dp, if (isDark) ZenDarkBorder else ZenLightBorder) else null
-                ) {
-                    Text(
-                        text = label,
-                        color = if (isSelected) Color.White else (if (isDark) ZenDarkTextPrimary else ZenLightTextPrimary),
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                    )
-                }
-            }
-        }
+        // 5. Duration Selector (45s, 60s, 90s)
+        DurationSelector(
+            selectedDurationSec = selectedDurationSec,
+            onSelectDurationSec = onSelectDurationSec
+        )
 
-        // Action Buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(
-                onClick = onOpenTutorial,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp)
-            ) {
-                Icon(Icons.Default.School, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Tutorial", fontWeight = FontWeight.SemiBold)
-            }
+        // 6. AdMob Banner Placement Preview
+        AdMimicCard()
 
-            Button(
-                onClick = onStart,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ZenTealPrimary),
-                modifier = Modifier
-                    .weight(1.5f)
-                    .height(52.dp)
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Begin Walk", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
-        }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 

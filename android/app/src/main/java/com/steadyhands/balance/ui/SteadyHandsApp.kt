@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -25,11 +29,11 @@ import com.steadyhands.balance.ui.screens.*
 import com.steadyhands.balance.ui.theme.*
 import com.steadyhands.balance.ui.tutorial.InteractiveTutorialDialog
 
-enum class AppTab(val title: String, val icon: ImageVector) {
-    PLAY("Play", Icons.Default.SelfImprovement),
-    LEADERBOARD("Ranks", Icons.Default.EmojiEvents),
-    GUIDE("Guide", Icons.Default.MenuBook),
-    SETTINGS("Settings", Icons.Default.Settings)
+enum class AppTab(val label: String, val screenTitle: String, val icon: ImageVector) {
+    PLAY("PLAY", "Play", Icons.Default.SportsEsports),
+    INFO("INFO", "Instructions", Icons.Default.MenuBook),
+    RANK("RANK", "Leaderboard", Icons.Default.EmojiEvents),
+    SET("SET", "Settings", Icons.Default.Settings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,6 +45,7 @@ fun SteadyHandsApp() {
 
     var currentTab by remember { mutableStateOf(AppTab.PLAY) }
     var showTutorial by remember { mutableStateOf(false) }
+    var isGameActive by remember { mutableStateOf(false) }
 
     // Check first launch tutorial preference
     LaunchedEffect(Unit) {
@@ -52,85 +57,92 @@ fun SteadyHandsApp() {
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Steady Hands",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = ZenTealPrimary
-                        )
-                        Surface(
-                            color = ZenTealPrimary.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = "COMPOSE",
-                                color = ZenTealPrimary,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    // Quick Switch to Web Button
-                    TextButton(
-                        onClick = {
-                            val intent = Intent(context, MainActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            }
-                            context.startActivity(intent)
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SwapHoriz,
-                            contentDescription = "Switch to Web",
-                            tint = ZenTealPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Web Mode",
-                            color = ZenTealPrimary,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (isDark) ZenDarkBg else ZenLightBg
-                )
-            )
-        },
         bottomBar = {
-            NavigationBar(
-                containerColor = if (isDark) ZenDarkCard else ZenLightSurface,
-                tonalElevation = 6.dp
-            ) {
-                AppTab.values().forEach { tab ->
-                    val isSelected = currentTab == tab
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = { currentTab = tab },
-                        icon = { Icon(tab.icon, contentDescription = tab.title) },
-                        label = { Text(tab.title, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = ZenTealPrimary,
-                            selectedTextColor = ZenTealPrimary,
-                            indicatorColor = ZenTealPrimary.copy(alpha = 0.15f)
+            if (!isGameActive) {
+                // Pixel-Perfect Bottom Nav Bar (Height 76dp, 4 tabs: PLAY, INFO, RANK, SET)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 12.dp,
+                            ambientColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow,
+                            spotColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow
                         )
-                    )
+                        .background(if (isDark) BottomNavBgDark else BottomNavBgLight)
+                        .border(
+                            width = 1.dp,
+                            color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.06f)
+                        )
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AppTab.values().forEach { tab ->
+                            val isSelected = currentTab == tab
+
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 66.dp, height = 58.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        if (isSelected) {
+                                            if (isDark) BottomNavActiveBgDark else BottomNavActiveBgLight
+                                        } else {
+                                            Color.Transparent
+                                        }
+                                    )
+                                    .border(
+                                        width = if (isSelected) 1.dp else 0.dp,
+                                        color = if (isSelected) {
+                                            if (isDark) BrandBlueDark.copy(alpha = 0.25f) else BrandBluePrimary.copy(alpha = 0.25f)
+                                        } else Color.Transparent,
+                                        shape = RoundedCornerShape(18.dp)
+                                    )
+                                    .clickable { currentTab = tab },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(2.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = tab.icon,
+                                        contentDescription = tab.label,
+                                        tint = if (isSelected) {
+                                            if (isDark) BrandBlueDark else BrandBluePrimary
+                                        } else {
+                                            if (isDark) TextSecondaryDark else TextMutedLight
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(2.dp))
+
+                                    Text(
+                                        text = tab.label,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                                        letterSpacing = 1.sp,
+                                        color = if (isSelected) {
+                                            if (isDark) BrandBlueDark else BrandBluePrimary
+                                        } else {
+                                            if (isDark) TextSecondaryDark else TextMutedLight
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
-        containerColor = if (isDark) ZenDarkBg else ZenLightBg
+        containerColor = if (isDark) CanvasBgDark else CanvasBgLight
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -140,13 +152,14 @@ fun SteadyHandsApp() {
             when (currentTab) {
                 AppTab.PLAY -> PlayScreen(
                     sensorEngine = sensorEngine,
-                    onOpenTutorial = { showTutorial = true }
+                    onOpenTutorial = { showTutorial = true },
+                    onGameActiveChanged = { active -> isGameActive = active }
                 )
-                AppTab.LEADERBOARD -> LeaderboardScreen()
-                AppTab.GUIDE -> InstructionsScreen(
+                AppTab.INFO -> InstructionsScreen(
                     onReplayTutorial = { showTutorial = true }
                 )
-                AppTab.SETTINGS -> SettingsScreen(
+                AppTab.RANK -> LeaderboardScreen()
+                AppTab.SET -> SettingsScreen(
                     sensorEngine = sensorEngine
                 )
             }

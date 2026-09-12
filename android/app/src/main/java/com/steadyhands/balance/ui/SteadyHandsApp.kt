@@ -60,98 +60,129 @@ fun SteadyHandsApp() {
     Scaffold(
         bottomBar = {
             if (!isGameActive) {
-                // Pixel-Perfect Bottom Nav Bar (Height 76dp, 4 tabs: PLAY, INFO, RANK, SET)
+                // Pixel-Perfect Bottom Nav Bar (Height ~72dp, 4 tabs: PLAY, INFO, RANK, SET)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 12.dp,
-                            ambientColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow,
-                            spotColor = if (isDark) NeuDarkShadowInDark else NeuDarkShadow
+                            elevation = 16.dp,
+                            ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.40f),
+                            spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.40f)
                         )
-                        .background(if (isDark) BottomNavBgDark else BottomNavBgLight)
+                        .background(if (isDark) Color(0xFF191C1E).copy(alpha = 0.98f) else Color.White.copy(alpha = 0.98f))
                         .border(
                             width = 1.dp,
-                            color = if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.06f)
+                            color = if (isDark) Color.White.copy(alpha = 0.05f) else Color(0xFF005F9E).copy(alpha = 0.08f)
                         )
                         .padding(horizontal = 16.dp, vertical = 6.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(64.dp),
+                            .height(60.dp),
                         horizontalArrangement = Arrangement.SpaceAround,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AppTab.values().forEach { tab ->
                             val isSelected = currentTab == tab
 
-                            val selectedTabBg = if (isSelected) {
-                                if (isDark) {
-                                    Brush.linearGradient(
-                                        colors = listOf(Color(0xFF1B2836), Color(0xFF131D28))
-                                    )
-                                } else {
-                                    Brush.linearGradient(
-                                        colors = listOf(Color(0xFFE2ECF7), Color(0xFFEDF4FB))
-                                    )
+                            if (isSelected) {
+                                val activeBg = if (isDark) Color(0xFF152331) else Color(0xFFE8F0F8)
+                                val insetShadow = if (isDark) Color(0xFF081018).copy(alpha = 0.70f) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
+                                val insetHighlight = if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.95f)
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 68.dp, height = 54.dp)
+                                        .shadow(
+                                            elevation = 2.dp,
+                                            shape = RoundedCornerShape(18.dp),
+                                            ambientColor = BrandBluePrimary.copy(alpha = 0.15f),
+                                            spotColor = BrandBluePrimary.copy(alpha = 0.15f)
+                                        )
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(activeBg)
+                                        .drawBehind {
+                                            // Top-left inset shadow
+                                            drawRect(
+                                                brush = Brush.verticalGradient(
+                                                    colors = listOf(insetShadow, Color.Transparent),
+                                                    startY = 0f,
+                                                    endY = 6.dp.toPx()
+                                                )
+                                            )
+                                            drawRect(
+                                                brush = Brush.horizontalGradient(
+                                                    colors = listOf(insetShadow, Color.Transparent),
+                                                    startX = 0f,
+                                                    endX = 6.dp.toPx()
+                                                )
+                                            )
+                                            // Bottom-right inner highlight
+                                            drawRect(
+                                                brush = Brush.verticalGradient(
+                                                    colors = listOf(Color.Transparent, insetHighlight),
+                                                    startY = size.height - 6.dp.toPx(),
+                                                    endY = size.height
+                                                )
+                                            )
+                                        }
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (isDark) BrandBlueDark.copy(alpha = 0.30f) else BrandBluePrimary.copy(alpha = 0.20f),
+                                            shape = RoundedCornerShape(18.dp)
+                                        )
+                                        .clickable { currentTab = tab },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                        modifier = Modifier.padding(2.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = tab.icon,
+                                            contentDescription = tab.label,
+                                            tint = if (isDark) BrandBlueDark else BrandBluePrimary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = tab.label,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            letterSpacing = 1.sp,
+                                            color = if (isDark) BrandBlueDark else BrandBluePrimary
+                                        )
+                                    }
                                 }
                             } else {
-                                Brush.linearGradient(
-                                    colors = listOf(Color.Transparent, Color.Transparent)
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 68.dp, height = 58.dp)
-                                    .shadow(
-                                        elevation = if (isSelected) (if (isDark) 2.dp else 2.dp) else 0.dp,
-                                        shape = RoundedCornerShape(18.dp),
-                                        ambientColor = if (isSelected) BrandBluePrimary.copy(alpha = 0.25f) else Color.Transparent,
-                                        spotColor = if (isSelected) BrandBluePrimary.copy(alpha = 0.25f) else Color.Transparent
-                                    )
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(selectedTabBg)
-                                    .border(
-                                        width = if (isSelected) 1.dp else 0.dp,
-                                        color = if (isSelected) {
-                                            if (isDark) BrandBlueDark.copy(alpha = 0.35f) else BrandBluePrimary.copy(alpha = 0.30f)
-                                        } else Color.Transparent,
-                                        shape = RoundedCornerShape(18.dp)
-                                    )
-                                    .clickable { currentTab = tab },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center,
-                                    modifier = Modifier.padding(2.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 68.dp, height = 54.dp)
+                                        .clickable { currentTab = tab },
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = tab.icon,
-                                        contentDescription = tab.label,
-                                        tint = if (isSelected) {
-                                            if (isDark) BrandBlueDark else BrandBluePrimary
-                                        } else {
-                                            if (isDark) TextSecondaryDark else TextMutedLight
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    )
-
-                                    Spacer(modifier = Modifier.height(2.dp))
-
-                                    Text(
-                                        text = tab.label,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
-                                        letterSpacing = 1.sp,
-                                        color = if (isSelected) {
-                                            if (isDark) BrandBlueDark else BrandBluePrimary
-                                        } else {
-                                            if (isDark) TextSecondaryDark else TextMutedLight
-                                        }
-                                    )
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                        modifier = Modifier.padding(2.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = tab.icon,
+                                            contentDescription = tab.label,
+                                            tint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = tab.label,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp,
+                                            color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -34,38 +34,25 @@ fun HomeRecordCard(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-
-    val cardBgGradient = if (isDark) {
-        Brush.linearGradient(
-            colors = listOf(Color(0xFF22262B), Color(0xFF181B1E)),
-            start = Offset(0f, 0f),
-            end = Offset(400f, 400f)
-        )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(Color(0xFFFFFFFF), Color(0xFFF0F4F8)),
-            start = Offset(0f, 0f),
-            end = Offset(400f, 400f)
-        )
-    }
+    val cardBg = if (isDark) Color(0xFF191C1E) else Color.White
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .shadow(
-                elevation = if (isDark) 5.dp else 8.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.55f),
-                spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.55f)
+                elevation = if (isDark) 4.dp else 10.dp,
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.40f),
+                spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.40f)
             )
-            .clip(RoundedCornerShape(20.dp))
-            .background(cardBgGradient)
+            .clip(RoundedCornerShape(16.dp))
+            .background(cardBg)
             .border(
                 width = 1.dp,
-                color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.90f),
-                shape = RoundedCornerShape(20.dp)
+                color = if (isDark) Color.Transparent else Color.White.copy(alpha = 0.85f),
+                shape = RoundedCornerShape(16.dp)
             )
-            .padding(vertical = 18.dp, horizontal = 20.dp),
+            .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -78,34 +65,34 @@ fun HomeRecordCard(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.2.sp,
-                color = if (isDark) TextSecondaryDark else TextSecondaryLight
+                color = if (isDark) Color(0xFFC0C7D3) else Color(0xFF404751)
             )
 
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
-            // Score with % sign and subtle gradient drop shadow
+            // Score with % sign
             Row(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "$recordScore",
-                    fontSize = 48.sp,
+                    fontSize = 46.sp,
                     lineHeight = 52.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (isDark) BrandBlueDark else BrandBluePrimary,
+                    color = if (isDark) Color(0xFF9DCAFF) else BrandBluePrimary,
                     letterSpacing = (-1).sp
                 )
                 Text(
                     text = "%",
-                    fontSize = 22.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isDark) BrandBlueDark else BrandBluePrimary,
+                    color = if (isDark) Color(0xFF9DCAFF) else BrandBluePrimary,
                     modifier = Modifier.padding(bottom = 6.dp, start = 2.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             // Subtitle
             Text(
@@ -113,7 +100,7 @@ fun HomeRecordCard(
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.5.sp,
-                color = if (isDark) TextMutedDark else TextMutedLight
+                color = if (isDark) Color(0xFFA0A8B4) else Color(0xFF707882)
             )
         }
     }
@@ -140,19 +127,25 @@ fun MindfulCarouselCard(
     val currentBenefit = MINDFUL_BENEFITS[activeIndex]
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Toggle Button
+        // Toggle Button matching web: rounded-2xl bg-[#eef4fb] dark:bg-[#152331] border border-[#005f9e]/15 shadow-sm
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .shadow(
+                    elevation = 2.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.35f),
+                    spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.35f)
+                )
                 .clip(RoundedCornerShape(16.dp))
-                .background(if (isDark) MindfulCardBgDark else MindfulCardBgLight)
+                .background(if (isDark) Color(0xFF152331) else Color(0xFFEEF4FB))
                 .border(
                     width = 1.dp,
-                    color = if (isDark) BrandBlueDark.copy(alpha = 0.20f) else BrandBluePrimary.copy(alpha = 0.15f),
+                    color = if (isDark) Color(0xFF9DCAFF).copy(alpha = 0.20f) else Color(0xFF005F9E).copy(alpha = 0.15f),
                     shape = RoundedCornerShape(16.dp)
                 )
                 .clickable { isExpanded = !isExpanded }
-                .padding(horizontal = 14.dp, vertical = 11.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -166,62 +159,50 @@ fun MindfulCarouselCard(
                     Icon(
                         imageVector = Icons.Default.AutoAwesome,
                         contentDescription = null,
-                        tint = if (isDark) BrandBlueDark else BrandBluePrimary,
+                        tint = if (isDark) Color(0xFF9DCAFF) else BrandBluePrimary,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = "Why Steady Hands? (${activeIndex + 1}/${MINDFUL_BENEFITS.size} Mind & Body)",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDark) BrandBlueDark else BrandBluePrimary
+                        color = if (isDark) Color(0xFF9DCAFF) else BrandBluePrimary
                     )
                 }
 
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = if (isDark) BrandBlueDark else BrandBluePrimary,
+                    tint = if (isDark) Color(0xFF9DCAFF) else BrandBluePrimary,
                     modifier = Modifier.size(18.dp)
                 )
             }
         }
 
-        // Expanded Card
+        // Expanded Card matching web: bg-white dark:bg-[#191c1e] card-raised rounded-2xl
         AnimatedVisibility(
             visible = isExpanded,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
-            val expandedGradient = if (isDark) {
-                Brush.linearGradient(
-                    colors = listOf(Color(0xFF22262B), Color(0xFF181B1E)),
-                    start = Offset(0f, 0f),
-                    end = Offset(300f, 300f)
-                )
-            } else {
-                Brush.linearGradient(
-                    colors = listOf(Color(0xFFFFFFFF), Color(0xFFF0F4F8)),
-                    start = Offset(0f, 0f),
-                    end = Offset(300f, 300f)
-                )
-            }
+            val expandedBg = if (isDark) Color(0xFF191C1E) else Color.White
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp)
                     .shadow(
-                        elevation = if (isDark) 5.dp else 8.dp,
-                        shape = RoundedCornerShape(18.dp),
-                        ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.55f),
-                        spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.55f)
+                        elevation = if (isDark) 4.dp else 8.dp,
+                        shape = RoundedCornerShape(16.dp),
+                        ambientColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.35f),
+                        spotColor = if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.35f)
                     )
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(expandedGradient)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(expandedBg)
                     .border(
                         width = 1.dp,
-                        color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.90f),
-                        shape = RoundedCornerShape(18.dp)
+                        color = if (isDark) Color.Transparent else Color.White.copy(alpha = 0.85f),
+                        shape = RoundedCornerShape(16.dp)
                     )
                     .padding(16.dp)
             ) {
@@ -365,16 +346,6 @@ fun DifficultySelector(
     val isDark = isSystemInDarkTheme()
     val options = listOf("easy" to "Easy", "medium" to "Medium", "hard" to "Hard")
 
-    val trackGradient = if (isDark) {
-        Brush.linearGradient(
-            colors = listOf(Color(0xFF131A22), Color(0xFF192532))
-        )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(Color(0xFFE2E7ED), Color(0xFFEDF2F7))
-        )
-    }
-
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Label with uppercase tracking
         Text(
@@ -386,18 +357,11 @@ fun DifficultySelector(
             modifier = Modifier.padding(start = 8.dp)
         )
 
-        // Pill track container with Neumorphic Inset shadow & gradient
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(CircleShape)
-                .background(trackGradient)
-                .border(
-                    width = 1.dp,
-                    color = if (isDark) Color(0xFF0F172A).copy(alpha = 0.70f) else Color.White.copy(alpha = 0.70f),
-                    shape = CircleShape
-                )
-                .padding(5.dp)
+        // Pill track container with True Neumorphic Inset shadow
+        NeuInsetTrack(
+            modifier = Modifier.fillMaxWidth(),
+            shape = CircleShape,
+            isDark = isDark
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -406,70 +370,38 @@ fun DifficultySelector(
                 options.forEach { (key, label) ->
                     val isActive = selectedDifficulty.equals(key, ignoreCase = true)
 
-                    val activeBg = if (isActive) {
-                        if (isDark) {
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF6B4B02), Color(0xFF533900))
-                            )
-                        } else {
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFFFFE5BA), Color(0xFFFFD794))
+                    if (isActive) {
+                        NeuActiveDifficultyPill(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clickable { onSelectDifficulty(key) },
+                            shape = CircleShape,
+                            isDark = isDark
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDark) DifficultyActiveTextDark else DifficultyActiveTextLight
                             )
                         }
                     } else {
-                        if (isDark) {
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF23282D), Color(0xFF1A1D20))
-                            )
-                        } else {
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFFFFFFFF), Color(0xFFF7F9FC))
+                        NeuRaisedPill(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clickable { onSelectDifficulty(key) },
+                            shape = CircleShape,
+                            isDark = isDark
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isDark) TextSecondaryDark else TextSecondaryLight
                             )
                         }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                            .shadow(
-                                elevation = if (isActive) (if (isDark) 4.dp else 3.dp) else (if (isDark) 2.dp else 4.dp),
-                                shape = CircleShape,
-                                ambientColor = if (isActive) {
-                                    if (isDark) Color(0xFF281C00) else Color(0xFFF59E0B).copy(alpha = 0.35f)
-                                } else {
-                                    if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
-                                },
-                                spotColor = if (isActive) {
-                                    if (isDark) Color(0xFF281C00) else Color(0xFFF59E0B).copy(alpha = 0.35f)
-                                } else {
-                                    if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
-                                }
-                            )
-                            .clip(CircleShape)
-                            .background(activeBg)
-                            .border(
-                                width = if (isActive) 1.dp else 1.dp,
-                                color = if (isActive) {
-                                    if (isDark) Color(0xFFFFDEA8).copy(alpha = 0.30f) else Color(0xFFF59E0B).copy(alpha = 0.35f)
-                                } else {
-                                    if (isDark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.90f)
-                                },
-                                shape = CircleShape
-                            )
-                            .clickable { onSelectDifficulty(key) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 15.sp,
-                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isActive) {
-                                if (isDark) DifficultyActiveTextDark else DifficultyActiveTextLight
-                            } else {
-                                if (isDark) TextSecondaryDark else TextSecondaryLight
-                            }
-                        )
                     }
                 }
             }
@@ -486,16 +418,6 @@ fun DurationSelector(
     val isDark = isSystemInDarkTheme()
     val options = listOf(45 to "45s", 60 to "60s", 90 to "90s")
 
-    val trackGradient = if (isDark) {
-        Brush.linearGradient(
-            colors = listOf(Color(0xFF131A22), Color(0xFF192532))
-        )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(Color(0xFFE2E7ED), Color(0xFFEDF2F7))
-        )
-    }
-
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Label with uppercase tracking
         Text(
@@ -507,18 +429,11 @@ fun DurationSelector(
             modifier = Modifier.padding(start = 8.dp)
         )
 
-        // Pill track container with Neumorphic Inset shadow & gradient
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(CircleShape)
-                .background(trackGradient)
-                .border(
-                    width = 1.dp,
-                    color = if (isDark) Color(0xFF0F172A).copy(alpha = 0.70f) else Color.White.copy(alpha = 0.70f),
-                    shape = CircleShape
-                )
-                .padding(5.dp)
+        // Pill track container with True Neumorphic Inset shadow
+        NeuInsetTrack(
+            modifier = Modifier.fillMaxWidth(),
+            shape = CircleShape,
+            isDark = isDark
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -527,70 +442,38 @@ fun DurationSelector(
                 options.forEach { (dur, label) ->
                     val isActive = selectedDurationSec == dur
 
-                    val activeBg = if (isActive) {
-                        if (isDark) {
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF00558F), Color(0xFF003D69))
-                            )
-                        } else {
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFFDCEDFF), Color(0xFFC8E1FF))
+                    if (isActive) {
+                        NeuActiveDurationPill(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clickable { onSelectDurationSec(dur) },
+                            shape = CircleShape,
+                            isDark = isDark
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (isDark) DurationActiveTextDark else DurationActiveTextLight
                             )
                         }
                     } else {
-                        if (isDark) {
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF23282D), Color(0xFF1A1D20))
-                            )
-                        } else {
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFFFFFFFF), Color(0xFFF7F9FC))
+                        NeuRaisedPill(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .clickable { onSelectDurationSec(dur) },
+                            shape = CircleShape,
+                            isDark = isDark
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isDark) TextSecondaryDark else TextSecondaryLight
                             )
                         }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                            .shadow(
-                                elevation = if (isActive) (if (isDark) 5.dp else 4.dp) else (if (isDark) 2.dp else 4.dp),
-                                shape = CircleShape,
-                                ambientColor = if (isActive) {
-                                    if (isDark) BrandBlueDark.copy(alpha = 0.40f) else BrandBluePrimary.copy(alpha = 0.45f)
-                                } else {
-                                    if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
-                                },
-                                spotColor = if (isActive) {
-                                    if (isDark) BrandBlueDark.copy(alpha = 0.40f) else BrandBluePrimary.copy(alpha = 0.45f)
-                                } else {
-                                    if (isDark) Color(0xFF070B0E) else Color(0xFFA3B1C6).copy(alpha = 0.45f)
-                                }
-                            )
-                            .clip(CircleShape)
-                            .background(activeBg)
-                            .border(
-                                width = if (isActive) 1.dp else 1.dp,
-                                color = if (isActive) {
-                                    if (isDark) OrbitCyan.copy(alpha = 0.45f) else BrandBluePrimary.copy(alpha = 0.35f)
-                                } else {
-                                    if (isDark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.90f)
-                                },
-                                shape = CircleShape
-                            )
-                            .clickable { onSelectDurationSec(dur) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 15.sp,
-                            fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (isActive) {
-                                if (isDark) DurationActiveTextDark else DurationActiveTextLight
-                            } else {
-                                if (isDark) TextSecondaryDark else TextSecondaryLight
-                            }
-                        )
                     }
                 }
             }

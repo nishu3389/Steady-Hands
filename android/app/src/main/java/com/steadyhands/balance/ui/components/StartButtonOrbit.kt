@@ -185,20 +185,8 @@ fun StartButtonOrbit(
             }
         }
 
-        // Center Interactive Start Button (~150dp) with dual neumorphic shadow and gradient
-        val buttonGradient = if (isDark) {
-            Brush.linearGradient(
-                colors = listOf(Color(0xFF262B30), Color(0xFF16191C)),
-                start = Offset(0f, 0f),
-                end = Offset(250f, 250f)
-            )
-        } else {
-            Brush.linearGradient(
-                colors = listOf(Color(0xFFFFFFFF), Color(0xFFEFF3F8)),
-                start = Offset(0f, 0f),
-                end = Offset(250f, 250f)
-            )
-        }
+        // Center Interactive Start Button (~152dp) with card-raised neumorphic shadow and crisp white face
+        val buttonBg = if (isDark) Color(0xFF191C1E) else Color.White
 
         Box(
             modifier = Modifier
@@ -207,14 +195,14 @@ fun StartButtonOrbit(
                 .shadow(
                     elevation = if (isDark) 10.dp else 14.dp,
                     shape = CircleShape,
-                    ambientColor = if (isDark) Color(0xFF040608) else Color(0xFFA3B1C6).copy(alpha = 0.60f),
-                    spotColor = if (isDark) Color(0xFF040608) else Color(0xFFA3B1C6).copy(alpha = 0.60f)
+                    ambientColor = if (isDark) Color(0xFF040608) else Color(0xFFA3B1C6).copy(alpha = 0.50f),
+                    spotColor = if (isDark) Color(0xFF040608) else Color(0xFFA3B1C6).copy(alpha = 0.50f)
                 )
                 .clip(CircleShape)
-                .background(buttonGradient)
+                .background(buttonBg)
                 .border(
-                    width = 1.5.dp,
-                    color = if (isDark) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.95f),
+                    width = 1.2.dp,
+                    color = if (isDark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.95f),
                     shape = CircleShape
                 )
                 .clickable(
@@ -224,14 +212,14 @@ fun StartButtonOrbit(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // Subtle Inner Concentric Ring
+            // Subtle Inner Concentric Ring (matches web inset-2.5)
             Box(
                 modifier = Modifier
-                    .size(134.dp)
+                    .size(132.dp)
                     .clip(CircleShape)
                     .border(
                         width = 1.dp,
-                        color = if (isDark) BrandBlueDark.copy(alpha = 0.18f) else BrandBluePrimary.copy(alpha = 0.14f),
+                        color = if (isDark) Color(0xFF9DCAFF).copy(alpha = 0.15f) else BrandBluePrimary.copy(alpha = 0.15f),
                         shape = CircleShape
                     )
             )
@@ -240,61 +228,48 @@ fun StartButtonOrbit(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier.padding(6.dp)
             ) {
-                // Play Icon Badge (42dp) with inset / shadow styling
+                // Play Icon Badge (40dp) with soft blue tint (bg-[#005f9e]/10)
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .background(
-                            if (isDark) {
-                                Brush.linearGradient(
-                                    colors = listOf(Color(0xFF00558F).copy(alpha = 0.35f), Color(0xFF003D69).copy(alpha = 0.20f))
-                                )
-                            } else {
-                                Brush.linearGradient(
-                                    colors = listOf(Color(0xFFD6E8FC), Color(0xFFE8F2FD))
-                                )
-                            }
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = if (isDark) BrandBlueDark.copy(alpha = 0.25f) else BrandBluePrimary.copy(alpha = 0.15f),
-                            shape = CircleShape
+                            if (isDark) Color(0xFF9DCAFF).copy(alpha = 0.15f) else BrandBluePrimary.copy(alpha = 0.10f)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Start",
-                        tint = if (isDark) BrandBlueDark else BrandBluePrimary,
+                        tint = if (isDark) Color(0xFF9DCAFF) else BrandBluePrimary,
                         modifier = Modifier
-                            .size(22.dp)
+                            .size(20.dp)
                             .offset(x = 1.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // "START" Text
+                // "START" Text (20sp, font weight 800, tracking 0.16em)
                 Text(
                     text = "START",
-                    fontSize = 19.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 2.sp,
-                    color = if (isDark) BrandBlueDark else BrandBluePrimary
+                    letterSpacing = 2.4.sp,
+                    color = if (isDark) Color(0xFF9DCAFF) else BrandBluePrimary
                 )
 
-                Spacer(modifier = Modifier.height(1.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
-                // "60S · MEDIUM"
+                // "60S · MEDIUM" (9sp, bold, tracking 0.12em)
                 Text(
                     text = "${durationSec}S · ${difficulty.uppercase()}",
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    color = if (isDark) TextMutedDark else TextMutedLight
+                    letterSpacing = 1.2.sp,
+                    color = if (isDark) Color(0xFFA0A8B4) else Color(0xFF707882)
                 )
             }
         }
